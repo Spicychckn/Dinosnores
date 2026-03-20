@@ -47,13 +47,9 @@ class ActionType(Enum):
     GROW_RAPTOR       = "grow_raptor"        # baby raptor + adult brontosaurus
 
     # -----------------------------------------------------------------------
-    # Merge plants (2× lvl N → 1× lvl N+1)
+    # Merge plants (2× lvl N → 1× lvl N+1; always merges lowest available pair)
     # -----------------------------------------------------------------------
-    MERGE_PLANT_LVL1 = "merge_plant_1"
-    MERGE_PLANT_LVL2 = "merge_plant_2"
-    MERGE_PLANT_LVL3 = "merge_plant_3"
-    MERGE_PLANT_LVL4 = "merge_plant_4"
-    MERGE_PLANT_LVL5 = "merge_plant_5"
+    MERGE_PLANT = "merge_plant"
 
     # -----------------------------------------------------------------------
     # Summon beasts
@@ -108,56 +104,25 @@ class ActionType(Enum):
     # Combines two instances of level N into one instance of level N+1.
     # Frees 1 grid space net.  Named as MERGE_<STATION>_<FROM_LEVEL>.
     # -----------------------------------------------------------------------
-    MERGE_VOLCANIC_PATCH_1 = "merge_vp_1"   # 2× lvl1 → 1× lvl2
-    MERGE_VOLCANIC_PATCH_2 = "merge_vp_2"   # 2× lvl2 → 1× lvl3
-    MERGE_VOLCANIC_PATCH_3 = "merge_vp_3"
-    MERGE_VOLCANIC_PATCH_4 = "merge_vp_4"   # 2× lvl4 → 1× lvl5 (max)
-
-    MERGE_HERBIVORE_NEST_1 = "merge_hn_1"
-    MERGE_HERBIVORE_NEST_2 = "merge_hn_2"
-    MERGE_HERBIVORE_NEST_3 = "merge_hn_3"
-    MERGE_HERBIVORE_NEST_4 = "merge_hn_4"   # 2× lvl4 → 1× lvl5 (max)
-
-    MERGE_CARNIVORE_NEST_1 = "merge_cn_1"
-    MERGE_CARNIVORE_NEST_2 = "merge_cn_2"   # 2× lvl2 → 1× lvl3 (max)
-
-    MERGE_PRIMORDIAL_CRATER_1 = "merge_pc_1"
-    MERGE_PRIMORDIAL_CRATER_2 = "merge_pc_2"
-    MERGE_PRIMORDIAL_CRATER_3 = "merge_pc_3"  # 2× lvl3 → 1× lvl4 (max)
+    MERGE_VOLCANIC_PATCH    = "merge_vp"   # always merges lowest available pair
+    MERGE_HERBIVORE_NEST    = "merge_hn"
+    MERGE_CARNIVORE_NEST    = "merge_cn"
+    MERGE_PRIMORDIAL_CRATER = "merge_pc"
 
     # -----------------------------------------------------------------------
-    # Feed currency items to T-Rex (0 damage; item removed from grid,
-    # its value added to the matching spendable currency balance)
+    # Feed currency items to T-Rex (feeds highest available level of that type)
     # -----------------------------------------------------------------------
-    FEED_BONES_LVL1 = "feed_bones_1"
-    FEED_BONES_LVL2 = "feed_bones_2"
-    FEED_BONES_LVL3 = "feed_bones_3"
-    FEED_BONES_LVL4 = "feed_bones_4"
-
-    FEED_HORNS_LVL1 = "feed_horns_1"
-    FEED_HORNS_LVL2 = "feed_horns_2"
-    FEED_HORNS_LVL3 = "feed_horns_3"
-    FEED_HORNS_LVL4 = "feed_horns_4"
-
-    FEED_FANGS_LVL1 = "feed_fangs_1"
-    FEED_FANGS_LVL2 = "feed_fangs_2"
-    FEED_FANGS_LVL3 = "feed_fangs_3"
-    FEED_FANGS_LVL4 = "feed_fangs_4"
+    FEED_BONES = "feed_bones"
+    FEED_HORNS = "feed_horns"
+    FEED_FANGS = "feed_fangs"
 
     # -----------------------------------------------------------------------
-    # Merge currency items (2× LvlN → 1× LvlN+1; frees 1 grid space)
+    # Merge currency items (merges lowest available pair; auto-feeds if result
+    # is lvl 4, since that is always the correct follow-up action)
     # -----------------------------------------------------------------------
-    MERGE_BONES_LVL1 = "merge_bones_1"
-    MERGE_BONES_LVL2 = "merge_bones_2"
-    MERGE_BONES_LVL3 = "merge_bones_3"
-
-    MERGE_HORNS_LVL1 = "merge_horns_1"
-    MERGE_HORNS_LVL2 = "merge_horns_2"
-    MERGE_HORNS_LVL3 = "merge_horns_3"
-
-    MERGE_FANGS_LVL1 = "merge_fangs_1"
-    MERGE_FANGS_LVL2 = "merge_fangs_2"
-    MERGE_FANGS_LVL3 = "merge_fangs_3"
+    MERGE_BONES = "merge_bones"
+    MERGE_HORNS = "merge_horns"
+    MERGE_FANGS = "merge_fangs"
 
     # -----------------------------------------------------------------------
     # Purchase upgrades

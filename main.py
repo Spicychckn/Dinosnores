@@ -34,23 +34,10 @@ MERGE_EGG_PRIORITY = [
     ActionType.MERGE_STEGOSAURUS_EGG,
 ]
 
-# Merge plants low-to-high to build toward the higher levels needed for growing
-MERGE_PLANT_PRIORITY = [
-    ActionType.MERGE_PLANT_LVL1,
-    ActionType.MERGE_PLANT_LVL2,
-    ActionType.MERGE_PLANT_LVL3,
-    ActionType.MERGE_PLANT_LVL4,
-    ActionType.MERGE_PLANT_LVL5,
-]
-
-# Feed highest-value items first to maximise currency per action
 FEED_CURRENCY_PRIORITY = [
-    ActionType.FEED_FANGS_LVL4, ActionType.FEED_FANGS_LVL3,
-    ActionType.FEED_FANGS_LVL2, ActionType.FEED_FANGS_LVL1,
-    ActionType.FEED_HORNS_LVL4, ActionType.FEED_HORNS_LVL3,
-    ActionType.FEED_HORNS_LVL2, ActionType.FEED_HORNS_LVL1,
-    ActionType.FEED_BONES_LVL4, ActionType.FEED_BONES_LVL3,
-    ActionType.FEED_BONES_LVL2, ActionType.FEED_BONES_LVL1,
+    ActionType.FEED_FANGS,
+    ActionType.FEED_HORNS,
+    ActionType.FEED_BONES,
 ]
 
 
@@ -72,9 +59,8 @@ def heuristic_agent(valid_actions, state):
             return a
 
     # Merge plants whenever possible to build toward higher levels
-    for a in MERGE_PLANT_PRIORITY:
-        if a in valid_set:
-            return a
+    if ActionType.MERGE_PLANT in valid_set:
+        return ActionType.MERGE_PLANT
 
     # Decide whether to spawn plant or egg next.
     # Spawn eggs only if we have at least as many plants in the pipeline

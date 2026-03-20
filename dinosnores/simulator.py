@@ -162,10 +162,9 @@ class DinosnoresSimulator:
                     state.adult_herbivores[stats.herbivore_food] >= 1):
                 valid.append(_GROW_CARNIVORE_ACTION[c_type])
 
-        # --- Merge plants (2× lvl N → 1× lvl N+1) ---
-        for lvl in range(1, MAX_PLANT_LEVEL):
-            if state.plants.get(lvl, 0) >= 2:
-                valid.append(_MERGE_PLANT_ACTION[lvl])
+        # --- Merge plants (2× lvl N → 1× lvl N+1; always lowest pair) ---
+        if any(state.plants.get(lvl, 0) >= 2 for lvl in range(1, MAX_PLANT_LEVEL)):
+            valid.append(ActionType.MERGE_PLANT)
 
         # --- Summon beasts (soup cost + wake-up unlock + 1 free grid space) ---
         for b_type in BeastType:
@@ -221,40 +220,31 @@ class DinosnoresSimulator:
                 _can_afford(state, STATION_BUY_COST["primordial_crater"])):
             valid.append(ActionType.BUY_PRIMORDIAL_CRATER)
 
-        # --- Merge stations ---
-        for lvl in range(1, MAX_VP_LEVEL):   # levels 1–4 can be merged
-            if state.volcanic_patches.get(lvl, 0) >= 2:
-                valid.append(_MERGE_VP_ACTION[lvl])
+        # --- Merge stations (one action per type; always merges lowest pair) ---
+        if any(state.volcanic_patches.get(lvl, 0) >= 2 for lvl in range(1, MAX_VP_LEVEL)):
+            valid.append(ActionType.MERGE_VOLCANIC_PATCH)
+        if any(state.herbivore_nests.get(lvl, 0) >= 2 for lvl in range(1, MAX_HN_LEVEL)):
+            valid.append(ActionType.MERGE_HERBIVORE_NEST)
+        if any(state.carnivore_nests.get(lvl, 0) >= 2 for lvl in range(1, MAX_CN_LEVEL)):
+            valid.append(ActionType.MERGE_CARNIVORE_NEST)
+        if any(state.primordial_craters.get(lvl, 0) >= 2 for lvl in range(1, MAX_PC_LEVEL)):
+            valid.append(ActionType.MERGE_PRIMORDIAL_CRATER)
 
-        for lvl in range(1, MAX_HN_LEVEL):
-            if state.herbivore_nests.get(lvl, 0) >= 2:
-                valid.append(_MERGE_HN_ACTION[lvl])
+        # --- Feed currency items (feeds highest available level) ---
+        if any(state.bone_items.get(lvl, 0) >= 1 for lvl in range(1, MAX_CURRENCY_LEVEL + 1)):
+            valid.append(ActionType.FEED_BONES)
+        if any(state.horn_items.get(lvl, 0) >= 1 for lvl in range(1, MAX_CURRENCY_LEVEL + 1)):
+            valid.append(ActionType.FEED_HORNS)
+        if any(state.fang_items.get(lvl, 0) >= 1 for lvl in range(1, MAX_CURRENCY_LEVEL + 1)):
+            valid.append(ActionType.FEED_FANGS)
 
-        for lvl in range(1, MAX_CN_LEVEL):
-            if state.carnivore_nests.get(lvl, 0) >= 2:
-                valid.append(_MERGE_CN_ACTION[lvl])
-
-        for lvl in range(1, MAX_PC_LEVEL):
-            if state.primordial_craters.get(lvl, 0) >= 2:
-                valid.append(_MERGE_PC_ACTION[lvl])
-
-        # --- Feed currency items ---
-        for lvl in range(1, MAX_CURRENCY_LEVEL + 1):
-            if state.bone_items.get(lvl, 0) >= 1:
-                valid.append(_FEED_BONES_ACTION[lvl])
-            if state.horn_items.get(lvl, 0) >= 1:
-                valid.append(_FEED_HORNS_ACTION[lvl])
-            if state.fang_items.get(lvl, 0) >= 1:
-                valid.append(_FEED_FANGS_ACTION[lvl])
-
-        # --- Merge currency items ---
-        for lvl in range(1, MAX_CURRENCY_LEVEL):
-            if state.bone_items.get(lvl, 0) >= 2:
-                valid.append(_MERGE_BONES_ACTION[lvl])
-            if state.horn_items.get(lvl, 0) >= 2:
-                valid.append(_MERGE_HORNS_ACTION[lvl])
-            if state.fang_items.get(lvl, 0) >= 2:
-                valid.append(_MERGE_FANGS_ACTION[lvl])
+        # --- Merge currency items (merges lowest pair; auto-feeds if result is lvl 4) ---
+        if any(state.bone_items.get(lvl, 0) >= 2 for lvl in range(1, MAX_CURRENCY_LEVEL)):
+            valid.append(ActionType.MERGE_BONES)
+        if any(state.horn_items.get(lvl, 0) >= 2 for lvl in range(1, MAX_CURRENCY_LEVEL)):
+            valid.append(ActionType.MERGE_HORNS)
+        if any(state.fang_items.get(lvl, 0) >= 2 for lvl in range(1, MAX_CURRENCY_LEVEL)):
+            valid.append(ActionType.MERGE_FANGS)
 
         # --- Purchase upgrades ---
         if (state.more_score_level < MAX_MORE_SCORE_LEVEL and
@@ -417,9 +407,9 @@ class DinosnoresSimulator:
             info["grew"] = c_type.value
             return
 
-        # --- Merge plants (2× lvl N → 1× lvl N+1) ---
-        if action in _MERGE_PLANT_ACTION.values():
-            lvl = _ACTION_TO_MERGE_PLANT[action]
+        # --- Merge plants (lowest available pair) ---
+        if action == ActionType.MERGE_PLANT:
+            lvl = _lowest_mergeable_level(state.plants, MAX_PLANT_LEVEL)
             state.plants[lvl] -= 2
             state.plants[lvl + 1] = state.plants.get(lvl + 1, 0) + 1
             info["merged_plant"] = lvl
@@ -494,28 +484,31 @@ class DinosnoresSimulator:
             info["alarm_clock"] = True
             return
 
-        # --- Feed currency items ---
-        if action in _ALL_FEED_ACTIONS:
-            currency_type, lvl = _FEED_ACTION_TO_TYPE_LEVEL[action]
+        # --- Feed currency items (highest available level) ---
+        if action in (ActionType.FEED_BONES, ActionType.FEED_HORNS, ActionType.FEED_FANGS):
+            currency_type = _FEED_ACTION_TO_TYPE[action]
             item_dict = _item_dict(state, currency_type)
+            lvl = _highest_item_level(item_dict)
             item_dict[lvl] -= 1
             value = CURRENCY_ITEM_VALUE[lvl]
-            if currency_type == "bones":
-                state.big_bones += value
-            elif currency_type == "horns":
-                state.horns += value
-            else:
-                state.fangs += value
+            _credit_currency(state, currency_type, value)
             info["fed"] = (currency_type, lvl, value)
             return
 
-        # --- Merge currency items ---
-        if action in _ALL_MERGE_CURRENCY_ACTIONS:
-            currency_type, lvl = _MERGE_CURRENCY_ACTION_TO_TYPE_LEVEL[action]
+        # --- Merge currency items (lowest pair; auto-feed if result is lvl 4) ---
+        if action in (ActionType.MERGE_BONES, ActionType.MERGE_HORNS, ActionType.MERGE_FANGS):
+            currency_type = _MERGE_CURRENCY_ACTION_TO_TYPE[action]
             item_dict = _item_dict(state, currency_type)
+            lvl = _lowest_mergeable_level(item_dict, MAX_CURRENCY_LEVEL)
             item_dict[lvl] -= 2
-            item_dict[lvl + 1] = item_dict.get(lvl + 1, 0) + 1
+            new_lvl = lvl + 1
+            item_dict[new_lvl] = item_dict.get(new_lvl, 0) + 1
             info["merged"] = (currency_type, lvl)
+            if new_lvl == MAX_CURRENCY_LEVEL:
+                item_dict[new_lvl] -= 1
+                value = CURRENCY_ITEM_VALUE[new_lvl]
+                _credit_currency(state, currency_type, value)
+                info["fed"] = (currency_type, new_lvl, value)
             return
 
         # --- Buy stations ---
@@ -539,25 +532,21 @@ class DinosnoresSimulator:
             state.primordial_craters[1] = state.primordial_craters.get(1, 0) + 1
             return
 
-        # --- Merge stations ---
-        if action in _MERGE_VP_ACTION.values():
-            lvl = _ACTION_TO_MERGE_VP[action]
-            _merge_station(state.volcanic_patches, lvl)
+        # --- Merge stations (lowest available pair) ---
+        if action == ActionType.MERGE_VOLCANIC_PATCH:
+            _merge_station(state.volcanic_patches, _lowest_mergeable_level(state.volcanic_patches, MAX_VP_LEVEL))
             return
 
-        if action in _MERGE_HN_ACTION.values():
-            lvl = _ACTION_TO_MERGE_HN[action]
-            _merge_station(state.herbivore_nests, lvl)
+        if action == ActionType.MERGE_HERBIVORE_NEST:
+            _merge_station(state.herbivore_nests, _lowest_mergeable_level(state.herbivore_nests, MAX_HN_LEVEL))
             return
 
-        if action in _MERGE_CN_ACTION.values():
-            lvl = _ACTION_TO_MERGE_CN[action]
-            _merge_station(state.carnivore_nests, lvl)
+        if action == ActionType.MERGE_CARNIVORE_NEST:
+            _merge_station(state.carnivore_nests, _lowest_mergeable_level(state.carnivore_nests, MAX_CN_LEVEL))
             return
 
-        if action in _MERGE_PC_ACTION.values():
-            lvl = _ACTION_TO_MERGE_PC[action]
-            _merge_station(state.primordial_craters, lvl)
+        if action == ActionType.MERGE_PRIMORDIAL_CRATER:
+            _merge_station(state.primordial_craters, _lowest_mergeable_level(state.primordial_craters, MAX_PC_LEVEL))
             return
 
         # --- Purchase upgrades ---
@@ -767,6 +756,32 @@ class DinosnoresSimulator:
 # Module-level helpers
 # ------------------------------------------------------------------
 
+def _lowest_mergeable_level(d: Dict[int, int], max_level: int) -> int:
+    """Return the lowest level in d that has ≥2 items and is below max_level."""
+    for lvl in range(1, max_level):
+        if d.get(lvl, 0) >= 2:
+            return lvl
+    raise ValueError("No mergeable level found")  # should never happen if validity check passed
+
+
+def _highest_item_level(d: Dict[int, int]) -> int:
+    """Return the highest level in d that has ≥1 item."""
+    for lvl in range(MAX_CURRENCY_LEVEL, 0, -1):
+        if d.get(lvl, 0) >= 1:
+            return lvl
+    raise ValueError("No item found")  # should never happen if validity check passed
+
+
+def _credit_currency(state: "GameState", currency_type: str, value: int) -> None:
+    """Add value to the spendable balance for the given currency type."""
+    if currency_type == "bones":
+        state.big_bones += value
+    elif currency_type == "horns":
+        state.horns += value
+    else:
+        state.fangs += value
+
+
 def _item_dict(state: "GameState", currency_type: str) -> Dict[int, int]:
     """Return the mutable item dict for a given currency type string."""
     if currency_type == "bones":
@@ -837,14 +852,6 @@ _GROW_CARNIVORE_ACTION = {
 }
 _ACTION_TO_CARNIVORE_GROW = {v: k for k, v in _GROW_CARNIVORE_ACTION.items()}
 
-_MERGE_PLANT_ACTION = {
-    1: ActionType.MERGE_PLANT_LVL1,
-    2: ActionType.MERGE_PLANT_LVL2,
-    3: ActionType.MERGE_PLANT_LVL3,
-    4: ActionType.MERGE_PLANT_LVL4,
-    5: ActionType.MERGE_PLANT_LVL5,
-}
-_ACTION_TO_MERGE_PLANT = {v: k for k, v in _MERGE_PLANT_ACTION.items()}
 
 _SUMMON_BEAST_ACTION = {
     BeastType.MAMMOTH:     ActionType.SUMMON_MAMMOTH,
@@ -871,82 +878,14 @@ _ATTACK_BEAST_ACTION = {
 }
 _ACTION_TO_BEAST_ATTACK = {v: k for k, v in _ATTACK_BEAST_ACTION.items()}
 
-_MERGE_VP_ACTION = {
-    1: ActionType.MERGE_VOLCANIC_PATCH_1,
-    2: ActionType.MERGE_VOLCANIC_PATCH_2,
-    3: ActionType.MERGE_VOLCANIC_PATCH_3,
-    4: ActionType.MERGE_VOLCANIC_PATCH_4,
+# Feed / merge currency dispatch maps
+_FEED_ACTION_TO_TYPE: Dict = {
+    ActionType.FEED_BONES: "bones",
+    ActionType.FEED_HORNS: "horns",
+    ActionType.FEED_FANGS: "fangs",
 }
-_ACTION_TO_MERGE_VP = {v: k for k, v in _MERGE_VP_ACTION.items()}
-
-_MERGE_HN_ACTION = {
-    1: ActionType.MERGE_HERBIVORE_NEST_1,
-    2: ActionType.MERGE_HERBIVORE_NEST_2,
-    3: ActionType.MERGE_HERBIVORE_NEST_3,
-    4: ActionType.MERGE_HERBIVORE_NEST_4,
+_MERGE_CURRENCY_ACTION_TO_TYPE: Dict = {
+    ActionType.MERGE_BONES: "bones",
+    ActionType.MERGE_HORNS: "horns",
+    ActionType.MERGE_FANGS: "fangs",
 }
-_ACTION_TO_MERGE_HN = {v: k for k, v in _MERGE_HN_ACTION.items()}
-
-_MERGE_CN_ACTION = {
-    1: ActionType.MERGE_CARNIVORE_NEST_1,
-    2: ActionType.MERGE_CARNIVORE_NEST_2,
-}
-_ACTION_TO_MERGE_CN = {v: k for k, v in _MERGE_CN_ACTION.items()}
-
-_MERGE_PC_ACTION = {
-    1: ActionType.MERGE_PRIMORDIAL_CRATER_1,
-    2: ActionType.MERGE_PRIMORDIAL_CRATER_2,
-    3: ActionType.MERGE_PRIMORDIAL_CRATER_3,
-}
-_ACTION_TO_MERGE_PC = {v: k for k, v in _MERGE_PC_ACTION.items()}
-
-# Feed currency items
-_FEED_BONES_ACTION = {
-    1: ActionType.FEED_BONES_LVL1,
-    2: ActionType.FEED_BONES_LVL2,
-    3: ActionType.FEED_BONES_LVL3,
-    4: ActionType.FEED_BONES_LVL4,
-}
-_FEED_HORNS_ACTION = {
-    1: ActionType.FEED_HORNS_LVL1,
-    2: ActionType.FEED_HORNS_LVL2,
-    3: ActionType.FEED_HORNS_LVL3,
-    4: ActionType.FEED_HORNS_LVL4,
-}
-_FEED_FANGS_ACTION = {
-    1: ActionType.FEED_FANGS_LVL1,
-    2: ActionType.FEED_FANGS_LVL2,
-    3: ActionType.FEED_FANGS_LVL3,
-    4: ActionType.FEED_FANGS_LVL4,
-}
-
-# Merge currency items
-_MERGE_BONES_ACTION = {
-    1: ActionType.MERGE_BONES_LVL1,
-    2: ActionType.MERGE_BONES_LVL2,
-    3: ActionType.MERGE_BONES_LVL3,
-}
-_MERGE_HORNS_ACTION = {
-    1: ActionType.MERGE_HORNS_LVL1,
-    2: ActionType.MERGE_HORNS_LVL2,
-    3: ActionType.MERGE_HORNS_LVL3,
-}
-_MERGE_FANGS_ACTION = {
-    1: ActionType.MERGE_FANGS_LVL1,
-    2: ActionType.MERGE_FANGS_LVL2,
-    3: ActionType.MERGE_FANGS_LVL3,
-}
-
-# Reverse maps used in _execute_action dispatch
-_FEED_ACTION_TO_TYPE_LEVEL: Dict = {
-    **{v: ("bones", k) for k, v in _FEED_BONES_ACTION.items()},
-    **{v: ("horns", k) for k, v in _FEED_HORNS_ACTION.items()},
-    **{v: ("fangs", k) for k, v in _FEED_FANGS_ACTION.items()},
-}
-_MERGE_CURRENCY_ACTION_TO_TYPE_LEVEL: Dict = {
-    **{v: ("bones", k) for k, v in _MERGE_BONES_ACTION.items()},
-    **{v: ("horns", k) for k, v in _MERGE_HORNS_ACTION.items()},
-    **{v: ("fangs", k) for k, v in _MERGE_FANGS_ACTION.items()},
-}
-_ALL_FEED_ACTIONS = set(_FEED_ACTION_TO_TYPE_LEVEL)
-_ALL_MERGE_CURRENCY_ACTIONS = set(_MERGE_CURRENCY_ACTION_TO_TYPE_LEVEL)
