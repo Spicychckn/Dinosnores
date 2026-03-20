@@ -64,8 +64,8 @@ def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_
     print("=" * 70)
     print("STRATEGY TRACE  (deterministic rollout, seed={})".format(seed))
     print("=" * 70)
-    print(f"{'Turn':>6}  {'Time':>7}  {'Action':<28}  {'T-Rex HP':>10}  {'Score':>6}  Notes")
-    print("-" * 90)
+    print(f"{'Turn':>6}  {'Time':>7}  {'Action':<28}  {'T-Rex HP':>10}  {'Grid':>6}  {'Score':>6}  Notes")
+    print("-" * 100)
 
     total_reward = 0.0
     action_counts: dict[str, int] = collections.defaultdict(int)
@@ -107,16 +107,17 @@ def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_
             hours, rem = divmod(state.elapsed_seconds, 3600)
             mins = rem // 60
             hp_str = f"{state.trex_hp}/{state.trex_max_hp}"
+            grid_str = f"{state.grid_available()}/32"
             print(
                 f"{state.turn:>6}  {hours}h{mins:02d}m  "
-                f"{action_name:<28}  {hp_str:>10}  {state.score:>6}  "
+                f"{action_name:<28}  {hp_str:>10}  {grid_str:>6}  {state.score:>6}  "
                 + ", ".join(notes)
             )
 
         if terminated or truncated:
             break
 
-    print("-" * 90)
+    print("-" * 100)
     print(f"Episode finished — {state.turn} turns | Score: {state.score} | Wake-ups: {state.wake_ups}")
     print()
     return action_counts, state.score
