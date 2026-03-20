@@ -175,7 +175,17 @@ class DinosnoresSimulator:
                 valid.append(_GROW_CARNIVORE_ACTION[c_type])
 
         # --- Merge plants (2× lvl N → 1× lvl N+1; always lowest pair) ---
-        if any(state.plants.get(lvl, 0) >= 2 for lvl in range(1, MAX_PLANT_LEVEL)):
+        # MERGE_PLANT: only valid at levels where ≥2 plants remain after
+        # reserving one per baby herbivore that requires that plant level.
+        reserved: Dict[int, int] = {}
+        for h_type in HerbivoreType:
+            if state.baby_herbivores[h_type] >= 1:
+                lvl_needed = HERBIVORE_STATS[h_type].plant_level_required
+                reserved[lvl_needed] = reserved.get(lvl_needed, 0) + state.baby_herbivores[h_type]
+        if any(
+            state.plants.get(lvl, 0) - reserved.get(lvl, 0) >= 2
+            for lvl in range(1, MAX_PLANT_LEVEL)
+        ):
             valid.append(ActionType.MERGE_PLANT)
 
         # --- Summon beasts (soup cost + wake-up unlock + 1 free grid space) ---
@@ -419,9 +429,17 @@ class DinosnoresSimulator:
             info["grew"] = c_type.value
             return
 
-        # --- Merge plants (lowest available pair) ---
+        # --- Merge plants (lowest safe pair — skip levels reserved for babies) ---
         if action == ActionType.MERGE_PLANT:
-            lvl = _lowest_mergeable_level(state.plants, MAX_PLANT_LEVEL)
+            reserved: Dict[int, int] = {}
+            for h_type in HerbivoreType:
+                if state.baby_herbivores[h_type] >= 1:
+                    lvl_needed = HERBIVORE_STATS[h_type].plant_level_required
+                    reserved[lvl_needed] = reserved.get(lvl_needed, 0) + state.baby_herbivores[h_type]
+            lvl = next(
+                l for l in range(1, MAX_PLANT_LEVEL)
+                if state.plants.get(l, 0) - reserved.get(l, 0) >= 2
+            )
             state.plants[lvl] -= 2
             state.plants[lvl + 1] = state.plants.get(lvl + 1, 0) + 1
             info["merged_plant"] = lvl
