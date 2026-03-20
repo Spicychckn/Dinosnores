@@ -108,14 +108,26 @@ class DinosnoresSimulator:
     def reset(self) -> GameState:
         """Return a fresh initial GameState and reset the RNG."""
         self.rng = _random.Random(self.seed)
-        return GameState()
+        state = GameState()
+        # Starting conditions
+        state.primordial_soup = 20_000
+        state.adult_herbivores[HerbivoreType.BRONTOSAURUS] = 1
+        state.adult_herbivores[HerbivoreType.TRICERATOPS] = 2
+        state.primordial_craters = {2: 1}
+        return state
 
     def get_valid_actions(self, state: GameState) -> List[ActionType]:
         """
         Return every action that can legally be executed in the given state.
-        WAIT is always valid.
+        WAIT is valid only when there is something worth waiting for — beacon
+        recharging or passive soup generating.  When neither holds, WAIT would
+        skip to the end of the game with no benefit, so it is omitted.
         """
-        valid: List[ActionType] = [ActionType.WAIT]
+        wait_useful = (
+            state.beacon_charges < BEACON_MAX_CHARGES or
+            self._soup_rate(state) > 0
+        )
+        valid: List[ActionType] = [ActionType.WAIT] if wait_useful else []
         free = state.grid_available()
 
         # --- Spawn plant (Volcanic Patch required, 1 free grid space, soup cost) ---
