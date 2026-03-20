@@ -1,0 +1,9 @@
+gymnasium>=0.29
+stable-baselines3>=2.3
+sb3-contrib>=2.3
+numpy>=1.24
+# Optional: progress bar during training
+tqdm
+rich
+# Optional: TensorBoard logging
+tensorboard
