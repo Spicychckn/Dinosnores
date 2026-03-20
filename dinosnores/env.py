@@ -24,6 +24,7 @@ from .constants import (
     MAX_GREATER_CRATERS_LEVEL, MAX_SOUP_STORES_LEVEL,
     MAX_CURRENCY_LEVEL,
     GAME_DURATION_SECONDS,
+    HERBIVORE_STATS,
 )
 
 # Ordered list of all actions — index = action integer passed to step()
@@ -109,21 +110,40 @@ class DinosnoresEnv(gym.Env):
     def _shaped_reward(self, info: dict) -> float:
         """Small intermediate rewards to guide the agent through the pipeline.
 
-        These are intentionally tiny compared to wake-up rewards (50+) so the
-        agent still optimises for score, but gets gradient signal before the
-        first T-Rex wake-up.
+        Design intent:
+        - Per-turn survival cost discourages wasting turns on idle loops.
+        - Only egg spawns (not plant spawns) are rewarded — plants are a cost,
+          not a goal; rewarding plant spawns caused the agent to spam them.
+        - Grow reward is scaled by the creature's soup_production: stego/bronto
+          produce soup every turn, making them more valuable to grow early.
+        - Damage reward directly incentivises attacking instead of just waiting
+          for beacon recharges.
         """
         r = 0.0
-        if info.get("spawned"):
-            r += 1.0   # spawned a plant or egg
+        r -= 0.005                                     # per-turn survival cost
+
+        spawned = info.get("spawned", "")
+        if spawned.endswith("_egg"):
+            r += 2.0                                   # egg spawned (plants give no reward)
+
         if info.get("merged_egg"):
-            r += 2.0   # 2 eggs → 1 baby
-        if info.get("grew"):
-            r += 3.0   # baby → adult (ready to attack)
+            r += 2.0                                   # 2 eggs → 1 baby
+
+        grew = info.get("grew")
+        if grew:
+            try:
+                h_type = HerbivoreType(grew)
+                # Scale by soup_production: stego=8, bronto=10, trice=5
+                r += 5.0 + HERBIVORE_STATS[h_type].soup_production
+            except ValueError:
+                r += 6.0                               # carnivore — strong attacker, no soup
+
+        r += info.get("damage_dealt", 0) * 0.005       # reward attacking
+
         if info.get("fed_meteor"):
-            r += 1.0   # converted meteor to soup
+            r += 1.0                                   # converted meteor to soup
         if info.get("fed"):
-            r += 0.5   # fed currency item to T-Rex
+            r += 0.5                                   # fed currency item to T-Rex
         return r
 
     def action_masks(self) -> np.ndarray:

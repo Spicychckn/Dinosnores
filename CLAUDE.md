@@ -164,6 +164,30 @@ next_state, reward, done, info = sim.step(state, ActionType.SPAWN_PLANT)
 
 ---
 
+## Reward Shaping Design (`dinosnores/env.py`)
+
+The simulator's raw reward is score-delta only (non-zero on T-Rex wake-ups). `_shaped_reward`
+adds dense intermediate signals to guide the agent through the pipeline. Key decisions:
+
+| Signal | Value | Rationale |
+|---|---|---|
+| Per-turn survival cost | −0.005 | Penalises idle loops (e.g. spam-spawning plants while waiting for beacon recharge) |
+| Egg spawned | +2.0 | Only eggs move the pipeline forward — **plant spawns give no reward** |
+| Egg merged → baby | +2.0 | Reinforces completing the egg → baby step |
+| Herbivore grown | +5 + `soup_production` | Stego=+8, Bronto=+10, Trice=+5 — soup producers are prioritised early because they compound into more spawns |
+| Carnivore grown | +6.0 | Flat bonus; strong attacker unlocked after the herbivore economy is built |
+| Damage dealt | `dmg × 0.005` | Directly incentivises attacking each turn, not just waiting for beacons |
+| Meteor fed | +1.0 | Converts grid clutter to soup |
+| Currency fed | +0.5 | Feeds currency items to advance the T-Rex wake |
+
+**Why plant spawns are not rewarded**: early training showed the agent discovering that
+cheap plant spawns (+500 soup) could farm shaped reward at 4× the rate of egg spawns.
+This created a local optimum where 830+ turns were spent on plant spam vs. 10 grows,
+with shaped reward (≈830) dwarfing actual score reward (350). Removing plant spawn
+reward broke this loop.
+
+---
+
 ## Known Approximations / TODOs
 
-- **Next step**: begin RL agent implementation once simulator is validated.
+- **Next step**: continue training the RL agent with the updated reward shaping.
