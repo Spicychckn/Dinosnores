@@ -102,8 +102,29 @@ class DinosnoresEnv(gym.Env):
         if action not in valid:
             action = ActionType.WAIT
         self._state, reward, terminated, info = self.sim.step(self._state, action)
+        reward += self._shaped_reward(info)
         truncated = False
         return self._obs(), float(reward), terminated, truncated, info
+
+    def _shaped_reward(self, info: dict) -> float:
+        """Small intermediate rewards to guide the agent through the pipeline.
+
+        These are intentionally tiny compared to wake-up rewards (50+) so the
+        agent still optimises for score, but gets gradient signal before the
+        first T-Rex wake-up.
+        """
+        r = 0.0
+        if info.get("spawned"):
+            r += 1.0   # spawned a plant or egg
+        if info.get("merged_egg"):
+            r += 2.0   # 2 eggs → 1 baby
+        if info.get("grew"):
+            r += 3.0   # baby → adult (ready to attack)
+        if info.get("fed_meteor"):
+            r += 1.0   # converted meteor to soup
+        if info.get("fed"):
+            r += 0.5   # fed currency item to T-Rex
+        return r
 
     def action_masks(self) -> np.ndarray:
         """Return a bool mask (length N_ACTIONS) of currently valid actions."""
