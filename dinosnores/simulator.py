@@ -439,11 +439,9 @@ class DinosnoresSimulator:
             h_type = _ACTION_TO_HERBIVORE_ATTACK[action]
             stats = HERBIVORE_STATS[h_type]
             damage = int(stats.base_damage * (1.0 + SHARPER_FANGS_BONUS[state.sharper_fangs_level]))
-            soup_gain = stats.soup_production + GREATER_CRATERS_BONUS[state.greater_craters_level]
             state.adult_herbivores[h_type] -= 1
             _drop_currency(state, h_type)
             self._deal_damage(state, damage, info)
-            self._add_soup(state, soup_gain)
             info["attacker"] = h_type.value
             info["damage"] = damage
             return
@@ -600,9 +598,17 @@ class DinosnoresSimulator:
 
     def _passive_generation(self, state: GameState) -> None:
         # Each Primordial Crater instance generates soup based on its level
+        gc_bonus = GREATER_CRATERS_BONUS[state.greater_craters_level]
         for level, count in state.primordial_craters.items():
             if count > 0:
-                self._add_soup(state, PRIMORDIAL_CRATER_SOUP_PER_TURN[level] * count)
+                self._add_soup(state, (PRIMORDIAL_CRATER_SOUP_PER_TURN[level] + gc_bonus) * count)
+
+        # Adult herbivores passively generate soup each turn
+        for h_type in HerbivoreType:
+            count = state.adult_herbivores[h_type]
+            if count > 0:
+                stats = HERBIVORE_STATS[h_type]
+                self._add_soup(state, stats.soup_production * count)
 
         self._tick_beacon(state)
 
@@ -683,6 +689,18 @@ class DinosnoresSimulator:
     def _add_soup(self, state: GameState, amount: int) -> None:
         state.primordial_soup = min(state.primordial_soup + amount, state.soup_capacity)
 
+    def _soup_rate(self, state: GameState) -> int:
+        """Passive soup generation per turn from craters and adult herbivores."""
+        gc_bonus = GREATER_CRATERS_BONUS[state.greater_craters_level]
+        rate = sum(
+            (PRIMORDIAL_CRATER_SOUP_PER_TURN[lvl] + gc_bonus) * cnt
+            for lvl, cnt in state.primordial_craters.items()
+            if cnt > 0
+        )
+        for h_type in HerbivoreType:
+            rate += HERBIVORE_STATS[h_type].soup_production * state.adult_herbivores[h_type]
+        return rate
+
     def _compute_wait_skip(self, state: GameState) -> int:
         """Return the number of turns to skip on a WAIT action.
 
@@ -708,11 +726,7 @@ class DinosnoresSimulator:
             skip = min(skip, turns_to_charge)
 
         # Turns until soup is sufficient for the cheapest spawn action
-        soup_rate = sum(
-            PRIMORDIAL_CRATER_SOUP_PER_TURN[lvl] * cnt
-            for lvl, cnt in state.primordial_craters.items()
-            if cnt > 0
-        )
+        soup_rate = self._soup_rate(state)
         if soup_rate > 0 and state.grid_available() > 0:
             targets = []
             if _has_station(state.volcanic_patches):
@@ -730,13 +744,7 @@ class DinosnoresSimulator:
 
     def _fast_forward(self, state: GameState, turns: int) -> None:
         """Apply `turns` worth of passive generation in one step."""
-        # Soup from all Primordial Craters
-        soup_rate = sum(
-            PRIMORDIAL_CRATER_SOUP_PER_TURN[lvl] * cnt
-            for lvl, cnt in state.primordial_craters.items()
-            if cnt > 0
-        )
-        self._add_soup(state, soup_rate * turns)
+        self._add_soup(state, self._soup_rate(state) * turns)
 
         # Beacon recharge — compute charges gained over the full skip
         if state.beacon_charges < BEACON_MAX_CHARGES:

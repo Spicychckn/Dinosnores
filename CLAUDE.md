@@ -54,12 +54,12 @@ Dinosnores/
 
 ## Creatures
 
-### Herbivores (grow: egg + plants → adult; attack: deal damage + gain soup)
-| Type        | Damage | Soup | Plants Required |
-|-------------|--------|------|-----------------|
-| Stegosaurus | 10     | 3    | 1               |
-| Brontosaurus| 20     | 5    | 2               |
-| Triceratops | 50     | 0    | 3               |
+### Herbivores (grow: egg + plants → adult; attack: deal damage; passive: generate soup each turn)
+| Type        | Damage | Soup/turn | Plant lvl required |
+|-------------|--------|-----------|--------------------|
+| Stegosaurus | 10     | 3         | 4                  |
+| Brontosaurus| 20     | 5         | 6                  |
+| Triceratops | 50     | 0         | 5                  |
 
 ### Carnivores (grow: egg + 1 adult herbivore → adult; attack: deal damage only)
 | Type        | Damage | Food (herbivore consumed) |
@@ -140,7 +140,7 @@ All costs are `(big_bones, horns, fangs)` tuples, index = current level.
 | Bye Bye Planet  | 3      | −3 turns beacon recharge per level          | (20,0,0) (0,40,0) (0,0,20)                                  |
 | Sharper Fangs   | 3      | +25/+50/+100% dino damage                   | (20,0,0) (30,30,0) (0,0,50)                                 |
 | Brutish Beasts  | 3      | +25/+50/+100% beast damage                  | (0,20,0) (25,0,10) (0,0,25)                                 |
-| Greater Craters | 2      | +1/+2 soup per herbivore attack             | (50,0,0) (0,50,0)                                           |
+| Greater Craters | 2      | +1/+2 soup per crater per tick              | (50,0,0) (0,50,0)                                           |
 | Soup Stores     | 5      | +100k soup capacity per level               | (0,10,0) (20,0,0) (0,30,0) (0,25,25) (75,0,0)              |
 
 ---

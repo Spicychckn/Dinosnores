@@ -36,7 +36,8 @@ def _tensorboard_available() -> bool:
 
 def _progress_bar_available() -> bool:
     try:
-        import tqdm, rich  # noqa: F401
+        import tqdm  # noqa: F401
+        import rich  # noqa: F401
         return True
     except ImportError:
         return False
@@ -93,11 +94,19 @@ def train(
     )
 
     if resume:
+        # Override ent_coef when resuming to counteract entropy collapse,
+        # which causes numerical instability (probs don't sum to 1) after
+        # long training runs.
         model = MaskablePPO.load(
             resume,
             env=vec_env,
             verbose=1,
             tensorboard_log=log_dir if _tensorboard_available() else None,
+            custom_objects={
+                "ent_coef": 0.05,        # re-inject entropy after collapse
+                "learning_rate": 1e-4,   # smaller lr for fine-tuning
+                "max_grad_norm": 0.5,    # gradient clipping for stability
+            },
         )
         print(f"Loaded model — resuming from {model.num_timesteps:,} timesteps\n")
     else:
@@ -116,6 +125,7 @@ def train(
             clip_range=0.2,
             ent_coef=0.01,     # encourage exploration early on
             learning_rate=3e-4,
+            max_grad_norm=0.5,
         )
 
     model.learn(
