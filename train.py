@@ -123,8 +123,8 @@ def train(
             gamma=0.995,       # high gamma: rewards are sparse and long-horizon
             gae_lambda=0.95,
             clip_range=0.2,
-            ent_coef=0.01,     # encourage exploration early on
-            learning_rate=3e-4,
+            ent_coef=0.05,     # higher entropy to prevent early collapse with large masked action space
+            learning_rate=1e-4,
             max_grad_norm=0.5,
         )
 
