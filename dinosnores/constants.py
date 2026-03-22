@@ -50,7 +50,7 @@ class BeastType(Enum):
 @dataclass(frozen=True)
 class HerbivoreStats:
     base_damage:         int   # damage dealt to T-Rex when deployed
-    soup_production:     int   # Primordial Soup gained on deploy
+    soup_production:     int   # Primordial Soup generated per turn (passive, while adult)
     plant_level_required: int  # level of plant consumed to grow baby -> adult
 
 
@@ -62,9 +62,9 @@ class CarnivoreStats:
 
 @dataclass(frozen=True)
 class BeastStats:
-    base_damage:      int  # damage dealt to T-Rex when deployed
-    unlock_wake_ups:  int  # minimum wake-up count needed to unlock
-    soup_cost:        int  # Primordial Soup spent to summon one beast
+    base_damage:      int    # damage dealt to T-Rex when deployed
+    unlock_wake_ups:  int    # minimum wake-up count needed to unlock
+    summon_cost:      tuple  # (big_bones, horns, fangs) spent to summon one beast
 
 
 HERBIVORE_STATS: Dict[HerbivoreType, HerbivoreStats] = {
@@ -79,8 +79,8 @@ CARNIVORE_STATS: Dict[CarnivoreType, CarnivoreStats] = {
 }
 
 BEAST_STATS: Dict[BeastType, BeastStats] = {
-    BeastType.MAMMOTH:     BeastStats(base_damage=200, unlock_wake_ups=10, soup_cost=5_000),
-    BeastType.SABER_TOOTH: BeastStats(base_damage=500, unlock_wake_ups=40, soup_cost=15_000),
+    BeastType.MAMMOTH:     BeastStats(base_damage=200, unlock_wake_ups=10, summon_cost=(30,  0, 0)),
+    BeastType.SABER_TOOTH: BeastStats(base_damage=500, unlock_wake_ups=40, summon_cost=( 0, 30, 0)),
 }
 
 
@@ -174,7 +174,7 @@ PRIMORDIAL_CRATER_SOUP_PER_TURN: List[int] = [0, 7, 12, 19, 28]
 # Alien Beacon
 # ---------------------------------------------------------------------------
 
-BEACON_MAX_CHARGES        = 2
+BEACON_MAX_CHARGES        = 5
 BEACON_RECHARGE_TURNS     = 1_080  # turns per charge (3 hours @ 1 turn = 10 s)
 BEACON_SOUP_FRACTION      = 1/20 # soup reward = 1/20th of soup_capacity
 
@@ -199,7 +199,7 @@ MORE_SCORE_BONUS: List[float] = [0.0, 0.10, 0.20, 0.30, 0.40, 0.50]
 
 # Bye Bye Planet: reduces beacon recharge by N turns per level (3 levels)
 MAX_BYE_BYE_PLANET_LEVEL = 3
-BYE_BYE_PLANET_REDUCTION: List[int] = [0, 180, 360, 540]  # turns removed from recharge (approx, proportional to 1,080-turn base)
+BYE_BYE_PLANET_REDUCTION: List[int] = [0, 120, 240, 360]  # turns removed from recharge (20/40/60 real-time minutes)
 
 # Sharper Fangs: +25/+50/+100% to dino damage (herbivores + carnivores), 3 levels
 MAX_SHARPER_FANGS_LEVEL  = 3
@@ -209,7 +209,7 @@ SHARPER_FANGS_BONUS: List[float] = [0.0, 0.25, 0.50, 1.00]
 MAX_BRUTISH_BEASTS_LEVEL = 3
 BRUTISH_BEASTS_BONUS: List[float] = [0.0, 0.25, 0.50, 1.00]
 
-# Greater Craters: +1 or +2 extra soup on herbivore attack, 2 levels
+# Greater Craters: +1 or +2 extra soup per Primordial Crater per tick, 2 levels
 MAX_GREATER_CRATERS_LEVEL = 2
 GREATER_CRATERS_BONUS: List[int] = [0, 1, 2]
 

@@ -20,7 +20,8 @@ Dinosnores/
     ├── constants.py             # all game constants, enums, stat tables
     ├── actions.py               # ActionType enum (every possible player action)
     ├── state.py                 # GameState dataclass + grid/station helpers
-    └── simulator.py             # DinosnoresSimulator — step(), get_valid_actions()
+    ├── simulator.py             # DinosnoresSimulator — step(), get_valid_actions()
+    └── env.py                   # DinosnoresEnv — Gymnasium wrapper + reward shaping
 ```
 
 ---
@@ -29,7 +30,7 @@ Dinosnores/
 
 ### Core Loop
 - The player attacks a T-Rex to reduce its HP to 0, "waking" it.
-- Each wake awards **score** and **currency** (Big Bones, Horns, Fangs).
+- Each wake awards **score** only.
 - The T-Rex resets with higher max HP each wake-up (+25 HP per wake).
 - Score formula: `(50 + wake_ups × 10) × (1 + more_score_bonus)`
 
@@ -42,36 +43,36 @@ Dinosnores/
 
 ### Resources
 - **Primordial Soup** — spent to spawn plants/eggs and summon beasts. Capped at `soup_capacity` (base 100,000).
-- **Big Bones / Horns / Fangs** — spent to buy stations and purchase upgrades. Earned on each T-Rex wake-up.
+- **Big Bones / Horns / Fangs** — spent to buy stations and purchase upgrades. Earned by feeding currency items (dropped by creatures on attack) to the T-Rex.
 - **Plants** — consumed to grow herbivore eggs into adults.
 
 ### Passive Generation (every turn)
 - **Primordial Crater**: each instance generates soup based on its level (`[0, 7, 12, 19, 28]` per turn).
-- **Beacon recharge**: 1 charge restored every 18 turns (reduced by Bye Bye Planet upgrade).
+- **Beacon recharge**: 1 charge restored every 1,080 game turns (3 real-time hours at 10 s/turn; reduced by Bye Bye Planet upgrade).
 - Plants and eggs are **NOT** passively generated — they require explicit player actions.
 
 ---
 
 ## Creatures
 
-### Herbivores (grow: egg + plants → adult; attack: deal damage; passive: generate soup each turn)
+### Herbivores (pipeline: 2 matching eggs → baby; baby + plant → adult; attack: deal damage; passive: generate soup each turn)
 | Type        | Damage | Soup/turn | Plant lvl required |
 |-------------|--------|-----------|--------------------|
 | Stegosaurus | 10     | 3         | 4                  |
 | Brontosaurus| 20     | 5         | 6                  |
 | Triceratops | 50     | 0         | 5                  |
 
-### Carnivores (grow: egg + 1 adult herbivore → adult; attack: deal damage only)
+### Carnivores (pipeline: 2 matching eggs → baby; baby + 1 adult herbivore → adult; attack: deal damage only)
 | Type        | Damage | Food (herbivore consumed) |
 |-------------|--------|---------------------------|
 | Pterodactyl | 100    | Stegosaurus               |
 | Raptor      | 400    | Brontosaurus              |
 
-### Beasts (summoned directly for soup; attack: deal damage only)
-| Type       | Damage | Soup Cost | Unlock (wake-ups) |
-|------------|--------|-----------|-------------------|
-| Mammoth    | 200    | 5,000     | 10                |
-| Saber Tooth| 500    | 15,000    | 40                |
+### Beasts (summoned directly for currency; attack: deal damage only)
+| Type       | Damage | Summon Cost   | Unlock (wake-ups) |
+|------------|--------|---------------|-------------------|
+| Mammoth    | 200    | 30 Big Bones  | 10                |
+| Saber Tooth| 500    | 30 Horns      | 40                |
 
 Damage is multiplied by upgrade bonuses (`sharper_fangs` for dinos, `brutish_beasts` for beasts).
 
@@ -89,7 +90,7 @@ Stations are **bought at level 1** (spending currency) and **merged** to reach h
 | Carnivore Nest   | 3         | (50, 50, 0)                    | 20                |
 | Primordial Crater| 4         | (0, 0, 40) *(approx)*          | 30                |
 
-**Starting state**: 1× Volcanic Patch lvl 1, 1× Herbivore Nest lvl 1 (given for free).
+**Starting state**: 1× Volcanic Patch lvl 1, 1× Herbivore Nest lvl 1, 1× Primordial Crater lvl 2 (given for free); 20,000 primordial soup; 1× adult Brontosaurus; 2× adult Triceratops.
 
 ### Spawn costs (soup per use, indexed by station level)
 - Volcanic Patch: `[0, 500, 600, 700, 800, 1000]` → spawns 1 plant (level determined probabilistically by VP level; see table below)
@@ -124,7 +125,7 @@ Spawn actions use the **cheapest (lowest-level)** available station of the requi
 | 5     | —           | 30%         | 70%          |
 
 ### Alien Beacon
-- Starts with 2 charges; max 2 charges; recharges 1 per 18 turns.
+- Starts with 2 charges; max 5 charges; recharges 1 per 1,080 game turns (3 real-time hours).
 - **USE_BEACON**: halves current T-Rex HP (cannot fully kill it alone) + spawns 1 Meteor grid item.
 - **FEED_METEOR**: remove 1 Meteor from grid; gain `soup_capacity / 20` soup.
 
@@ -137,7 +138,7 @@ All costs are `(big_bones, horns, fangs)` tuples, index = current level.
 | Upgrade         | Levels | Effect                                      | Costs per level                                              |
 |-----------------|--------|---------------------------------------------|--------------------------------------------------------------|
 | More Score      | 5      | +10% score per level                        | (20,10,0) (60,0,0) (0,0,50) (0,75,0) (0,0,100)             |
-| Bye Bye Planet  | 3      | −3 turns beacon recharge per level          | (20,0,0) (0,40,0) (0,0,20)                                  |
+| Bye Bye Planet  | 3      | −20/−40/−60 min beacon recharge (−120/−240/−360 turns) | (20,0,0) (0,40,0) (0,0,20)                         |
 | Sharper Fangs   | 3      | +25/+50/+100% dino damage                   | (20,0,0) (30,30,0) (0,0,50)                                 |
 | Brutish Beasts  | 3      | +25/+50/+100% beast damage                  | (0,20,0) (25,0,10) (0,0,25)                                 |
 | Greater Craters | 2      | +1/+2 soup per crater per tick              | (50,0,0) (0,50,0)                                           |
@@ -151,7 +152,7 @@ All costs are `(big_bones, horns, fangs)` tuples, index = current level.
 from dinosnores.simulator import DinosnoresSimulator
 from dinosnores.actions import ActionType
 
-sim = DinosnoresSimulator(max_turns=2000, score_target=None)
+sim = DinosnoresSimulator(max_duration_seconds=72*3600, score_target=None)
 state = sim.reset()
 
 valid_actions = sim.get_valid_actions(state)

@@ -178,12 +178,12 @@ class DinosnoresSimulator:
         if any(state.plants.get(lvl, 0) >= 2 for lvl in range(1, MAX_PLANT_LEVEL)):
             valid.append(ActionType.MERGE_PLANT)
 
-        # --- Summon beasts (soup cost + wake-up unlock + 1 free grid space) ---
+        # --- Summon beasts (currency cost + wake-up unlock + 1 free grid space) ---
         for b_type in BeastType:
             stats = BEAST_STATS[b_type]
             if (state.wake_ups >= stats.unlock_wake_ups and
                     free >= 1 and
-                    state.primordial_soup >= stats.soup_cost):
+                    _can_afford(state, stats.summon_cost)):
                 valid.append(_SUMMON_BEAST_ACTION[b_type])
 
         # --- Attack with herbivores ---
@@ -431,7 +431,7 @@ class DinosnoresSimulator:
         if action in _SUMMON_BEAST_ACTION.values():
             b_type = _ACTION_TO_BEAST_SUMMON[action]
             stats = BEAST_STATS[b_type]
-            state.primordial_soup -= stats.soup_cost
+            _spend_currency(state, stats.summon_cost)
             state.beasts[b_type] += 1
             info["summoned"] = b_type.value
             return

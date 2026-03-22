@@ -47,7 +47,7 @@ class GameState:
     # -----------------------------------------------------------------------
     # Alien Beacon
     # -----------------------------------------------------------------------
-    beacon_charges:          int = BEACON_MAX_CHARGES
+    beacon_charges:          int = 2
     beacon_recharge_counter: int = 0  # turns since last charge started regenerating
     meteors:                 int = 0  # meteor grid items (spawned by beacon, feed for soup)
 
