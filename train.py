@@ -5,17 +5,28 @@ Uses MaskablePPO from sb3-contrib so the agent only samples from
 valid actions at each step — critical for this environment since most
 actions are invalid most of the time.
 
+Before PPO begins, a Behavioural Cloning (BC) pre-training phase runs the
+greedy heuristic for a number of episodes, then trains the policy network
+via cross-entropy loss to imitate those demonstrations.  This warm-starts
+the policy so PPO begins from a sensible baseline rather than random noise.
+
 Usage
 -----
-    python3 train.py                                         # train from scratch
-    python3 train.py --timesteps 5000000                     # longer run
+    python3 train.py                                         # train from scratch (with BC pre-training)
+    python3 train.py --pretrain-episodes 20                  # fewer/more BC demo episodes
+    python3 train.py --no-pretrain                           # skip BC, pure RL from scratch
+    python3 train.py --timesteps 5000000                     # longer PPO run
     python3 train.py --envs 16                               # more parallel envs
-    python3 train.py --resume models/dinosnores_ppo_final    # continue training
+    python3 train.py --resume models/dinosnores_ppo_final    # continue training (skips BC)
     python3 train.py --resume models/best/best_model         # continue from best
 """
 
 import argparse
 import os
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
@@ -23,7 +34,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
 
-from dinosnores.env import DinosnoresEnv, N_ACTIONS, _OBS_DIM
+from dinosnores.env import DinosnoresEnv, ACTION_TO_IDX, N_ACTIONS, _OBS_DIM
+from dinosnores.heuristic import GreedyHeuristic
 
 
 def _tensorboard_available() -> bool:
@@ -43,6 +55,96 @@ def _progress_bar_available() -> bool:
         return False
 
 
+def collect_heuristic_demos(
+    n_episodes: int = 50,
+    seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run the greedy heuristic for n_episodes and record every
+    (observation, action_idx) pair.  Returns two arrays:
+        obs     : float32 (N, obs_dim)
+        actions : int64   (N,)
+    """
+    env = DinosnoresEnv(seed=seed)
+    heuristic = GreedyHeuristic()
+    obs_list, action_list = [], []
+    total_reward = 0.0
+
+    print(f"Collecting heuristic demonstrations ({n_episodes} episodes)...")
+    for ep in range(n_episodes):
+        obs, _ = env.reset()
+        done = False
+        ep_reward = 0.0
+        while not done:
+            valid = env.sim.get_valid_actions(env._state)
+            action = heuristic.choose_action(env._state, valid)
+            action_idx = ACTION_TO_IDX[action]
+
+            obs_list.append(obs.copy())
+            action_list.append(action_idx)
+
+            obs, reward, terminated, truncated, _ = env.step(action_idx)
+            ep_reward += reward
+            done = terminated or truncated
+
+        total_reward += ep_reward
+        print(
+            f"  Episode {ep + 1:>3}/{n_episodes} — "
+            f"reward: {ep_reward:8.1f}  "
+            f"score: {env._state.score:6}  "
+            f"wake-ups: {env._state.wake_ups}"
+        )
+
+    print(
+        f"\nHeuristic mean reward : {total_reward / n_episodes:.1f} "
+        f"({len(obs_list):,} total steps)\n"
+    )
+    return (
+        np.array(obs_list,    dtype=np.float32),
+        np.array(action_list, dtype=np.int64),
+    )
+
+
+def pretrain_bc(
+    model: MaskablePPO,
+    obs: np.ndarray,
+    actions: np.ndarray,
+    n_epochs: int = 5,
+    batch_size: int = 512,
+    lr: float = 1e-3,
+) -> None:
+    """
+    Behavioural cloning: minimise cross-entropy between the policy's action
+    distribution and the heuristic's demonstrated actions.
+
+    Uses the policy's own evaluate_actions() so the same network weights
+    that PPO will later fine-tune are the ones being pre-trained.
+    """
+    obs_t    = torch.as_tensor(obs).to(model.device)
+    action_t = torch.as_tensor(actions).to(model.device)
+
+    dataset  = TensorDataset(obs_t, action_t)
+    loader   = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    optimizer = torch.optim.Adam(model.policy.parameters(), lr=lr)
+
+    print(f"Behavioural cloning pre-training — {n_epochs} epochs, {len(obs):,} samples")
+    for epoch in range(n_epochs):
+        total_loss = 0.0
+        for obs_batch, action_batch in loader:
+            # evaluate_actions returns (values, log_probs, entropy)
+            _, log_probs, _ = model.policy.evaluate_actions(obs_batch, action_batch)
+            loss = -log_probs.mean()  # maximise log-likelihood = minimise cross-entropy
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item() * len(obs_batch)
+
+        print(f"  Epoch {epoch + 1}/{n_epochs} — loss: {total_loss / len(obs):.4f}")
+
+    print("Pre-training complete.\n")
+
+
 def make_env(seed: int = 0):
     """Factory used by make_vec_env."""
     def _init():
@@ -57,6 +159,7 @@ def train(
     log_dir: str = "logs",
     seed: int = 0,
     resume: str | None = None,
+    pretrain_episodes: int = 50,
 ):
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -128,6 +231,13 @@ def train(
             max_grad_norm=0.5,
         )
 
+    # BC pre-training: only on a fresh run (not when resuming)
+    if resume is None and pretrain_episodes > 0:
+        obs_demo, action_demo = collect_heuristic_demos(
+            n_episodes=pretrain_episodes, seed=seed
+        )
+        pretrain_bc(model, obs_demo, action_demo)
+
     model.learn(
         total_timesteps=total_timesteps,
         callback=[checkpoint_cb, eval_cb],
@@ -150,13 +260,15 @@ def train(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--timesteps", type=int, default=2_000_000)
-    parser.add_argument("--envs",      type=int, default=8)
-    parser.add_argument("--save-dir",  type=str, default="models")
-    parser.add_argument("--log-dir",   type=str, default="logs")
-    parser.add_argument("--seed",      type=int,  default=0)
-    parser.add_argument("--resume",    type=str,  default=None,
+    parser.add_argument("--timesteps",         type=int,  default=2_000_000)
+    parser.add_argument("--envs",              type=int,  default=8)
+    parser.add_argument("--save-dir",          type=str,  default="models")
+    parser.add_argument("--log-dir",           type=str,  default="logs")
+    parser.add_argument("--seed",              type=int,  default=0)
+    parser.add_argument("--resume",            type=str,  default=None,
                         help="Path to a saved model to continue training from")
+    parser.add_argument("--pretrain-episodes", type=int,  default=50,
+                        help="Heuristic episodes to collect for BC pre-training (0 to skip)")
     args = parser.parse_args()
 
     train(
@@ -166,4 +278,5 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         seed=args.seed,
         resume=args.resume,
+        pretrain_episodes=args.pretrain_episodes,
     )

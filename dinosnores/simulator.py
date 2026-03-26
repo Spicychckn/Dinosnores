@@ -708,14 +708,21 @@ class DinosnoresSimulator:
         Advances to the earliest of:
           - turns until the next beacon charge is gained
           - turns until soup reaches the threshold for the cheapest spawn action
+          - one beacon recharge cycle (BEACON_RECHARGE_TURNS) as a safety cap
           - end of episode
+        The beacon-cycle cap ensures that strategies waiting for soup thresholds
+        above the cheapest spawn cost (e.g. an attack-wave threshold) still get
+        called regularly even when the beacon is fully charged.
         Falls back to 1 if no meaningful event can be calculated.
         """
         remaining = self.max_turns - state.turn
         if remaining <= 0:
             return 1
 
-        skip = remaining  # default: wait out the episode
+        # Cap at one beacon cycle so the caller always re-evaluates state
+        # within 3 real-time hours, even when beacon is at max charges and
+        # soup already exceeds all spawn-cost thresholds.
+        skip = min(remaining, BEACON_RECHARGE_TURNS)
 
         # Turns until next beacon charge
         if state.beacon_charges < BEACON_MAX_CHARGES:
