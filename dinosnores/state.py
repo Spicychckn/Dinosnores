@@ -4,7 +4,7 @@ GameState dataclass for the Dinosnores simulator.
 
 import copy
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List
 
 from .constants import (
     HerbivoreType,
@@ -14,6 +14,7 @@ from .constants import (
     BEACON_MAX_CHARGES,
     BASE_SOUP_CAPACITY,
     GRID_SIZE,
+    SHOP_TOTAL_ITEMS,
 )
 
 
@@ -50,6 +51,7 @@ class GameState:
     beacon_charges:          int = 2
     beacon_recharge_counter: int = 0  # turns since last charge started regenerating
     meteors:                 int = 0  # meteor grid items (spawned by beacon, feed for soup)
+    alarm_clocks:            int = 0  # alarm clock grid items (from shop; consumed by USE_ALARM_CLOCK)
 
     # -----------------------------------------------------------------------
     # Creatures
@@ -94,6 +96,13 @@ class GameState:
     soup_stores_level:     int = 0
 
     # -----------------------------------------------------------------------
+    # Event Shop  (3-day rotation, 4 items per day, one purchase per slot)
+    # -----------------------------------------------------------------------
+    shop_items_claimed: List[bool] = field(
+        default_factory=lambda: [False] * SHOP_TOTAL_ITEMS
+    )
+
+    # -----------------------------------------------------------------------
     # Simulation bookkeeping
     # -----------------------------------------------------------------------
     turn: int = 0  # discrete turn counter
@@ -126,6 +135,7 @@ class GameState:
             + sum(self.horn_items.values())
             + sum(self.fang_items.values())
             + self.meteors
+            + self.alarm_clocks
         )
         return 1 + stations + variable  # 1 = Alien Beacon
 
@@ -174,7 +184,8 @@ class GameState:
             f"  Soup: {self.primordial_soup:,}/{self.soup_capacity:,}  Plants: {dict(self.plants)}",
             f"  Currency — Bones: {self.big_bones}  Horns: {self.horns}  Fangs: {self.fangs}",
             f"  Beacon charges: {self.beacon_charges}/{self.beacon_recharge_counter}t recharge"
-            + (f"  Meteors: {self.meteors}" if self.meteors else ""),
+            + (f"  Meteors: {self.meteors}" if self.meteors else "")
+            + (f"  Alarm clocks: {self.alarm_clocks}" if self.alarm_clocks else ""),
             f"  Herbivore eggs:    { {t.value: v for t,v in self.herbivore_eggs.items() if v} }",
             f"  Baby herbivores:   { {t.value: v for t,v in self.baby_herbivores.items() if v} }",
             f"  Adult herbivores:  { {t.value: v for t,v in self.adult_herbivores.items() if v} }",
@@ -194,4 +205,7 @@ class GameState:
             lines.append(f"  Horn items:  {dict(self.horn_items)}")
         if self.fang_items:
             lines.append(f"  Fang items:  {dict(self.fang_items)}")
+        claimed_count = sum(self.shop_items_claimed)
+        if claimed_count:
+            lines.append(f"  Shop claimed: {claimed_count}/{SHOP_TOTAL_ITEMS}")
         return "\n".join(lines)

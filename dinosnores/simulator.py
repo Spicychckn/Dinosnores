@@ -76,6 +76,8 @@ from .constants import (
     UPGRADE_COSTS,
     # Currency items
     CURRENCY_ITEM_VALUE, MAX_CURRENCY_LEVEL, CREATURE_CURRENCY_DROP,
+    # Event Shop
+    SHOP_DAY_TURNS, SHOP_NUM_DAYS, SHOP_ITEMS_PER_DAY, SHOP_CATALOG,
 )
 
 
@@ -143,9 +145,8 @@ class DinosnoresSimulator:
                 valid.append(ActionType.SPAWN_HERBIVORE_EGG)
 
         # --- Spawn carnivore egg (Carnivore Nest required; egg type is probabilistic) ---
-        if (_has_station(state.carnivore_nests) and
-                state.wake_ups >= CARNIVORE_NEST_UNLOCK_WAKE_UPS and
-                free >= 1):
+        # No wake-up gate here: having a CN on the grid (however obtained) is sufficient.
+        if (_has_station(state.carnivore_nests) and free >= 1):
             cost = self.spawn_cost_carnivore_egg(state)
             if state.primordial_soup >= cost:
                 valid.append(ActionType.SPAWN_CARNIVORE_EGG)
@@ -208,7 +209,7 @@ class DinosnoresSimulator:
         if state.meteors >= 1:
             valid.append(ActionType.FEED_METEOR)
 
-        if state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS:
+        if state.alarm_clocks >= 1 or state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS:
             valid.append(ActionType.USE_ALARM_CLOCK)
 
         # --- Buy stations (requires wake-up threshold, currency, 1 free grid space) ---
@@ -282,6 +283,25 @@ class DinosnoresSimulator:
         if (state.soup_stores_level < MAX_SOUP_STORES_LEVEL and
                 _can_afford(state, UPGRADE_COSTS["soup_stores"][state.soup_stores_level])):
             valid.append(ActionType.BUY_SOUP_STORES)
+
+        # --- Event Shop ---
+        current_day = min(state.turn // SHOP_DAY_TURNS, SHOP_NUM_DAYS - 1)
+        shop_slot_actions = [
+            ActionType.SHOP_SLOT_0,
+            ActionType.SHOP_SLOT_1,
+            ActionType.SHOP_SLOT_2,
+            ActionType.SHOP_CLAIM_AD,
+        ]
+        for slot_idx, shop_action in enumerate(shop_slot_actions):
+            catalog_idx = current_day * SHOP_ITEMS_PER_DAY + slot_idx
+            if state.shop_items_claimed[catalog_idx]:
+                continue
+            if free < 1:
+                continue
+            _, _, cost, _ = SHOP_CATALOG[catalog_idx]
+            if not _can_afford(state, cost):  # always True for (0,0,0) ad slots
+                continue
+            valid.append(shop_action)
 
         return valid
 
@@ -492,6 +512,9 @@ class DinosnoresSimulator:
 
         # --- Alarm Clock ---
         if action == ActionType.USE_ALARM_CLOCK:
+            if state.alarm_clocks >= 1:
+                state.alarm_clocks -= 1
+                info["alarm_clock_consumed"] = True
             self._deal_damage(state, state.trex_hp, info)
             info["alarm_clock"] = True
             return
@@ -592,6 +615,51 @@ class DinosnoresSimulator:
             state.soup_stores_level += 1
             state.soup_capacity = BASE_SOUP_CAPACITY + SOUP_STORES_BONUS[state.soup_stores_level]
             return
+
+        # --- Event Shop ---
+        shop_slot_actions = [
+            ActionType.SHOP_SLOT_0,
+            ActionType.SHOP_SLOT_1,
+            ActionType.SHOP_SLOT_2,
+            ActionType.SHOP_CLAIM_AD,
+        ]
+        if action in shop_slot_actions:
+            slot_idx = shop_slot_actions.index(action)
+            current_day = min(state.turn // SHOP_DAY_TURNS, SHOP_NUM_DAYS - 1)
+            catalog_idx = current_day * SHOP_ITEMS_PER_DAY + slot_idx
+            _, _, cost, label = SHOP_CATALOG[catalog_idx]
+            _spend_currency(state, cost)
+            state.shop_items_claimed[catalog_idx] = True
+            self._apply_shop_effect(state, label)
+            info["shop_claimed"] = label
+            return
+
+    def _apply_shop_effect(self, state: GameState, label: str) -> None:
+        """Apply the item effect for the given SHOP_CATALOG label."""
+        if label == "horn_item_lvl2":
+            state.horn_items[2] = state.horn_items.get(2, 0) + 1
+        elif label == "volcanic_patch_lvl1":
+            state.volcanic_patches[1] = state.volcanic_patches.get(1, 0) + 1
+        elif label == "herbivore_nest_lvl2":
+            state.herbivore_nests[2] = state.herbivore_nests.get(2, 0) + 1
+        elif label == "mammoth_ad":
+            state.beasts[BeastType.MAMMOTH] += 1
+        elif label == "volcanic_patch_lvl2":
+            state.volcanic_patches[2] = state.volcanic_patches.get(2, 0) + 1
+        elif label == "primordial_crater_lvl1":
+            state.primordial_craters[1] = state.primordial_craters.get(1, 0) + 1
+        elif label == "carnivore_nest_lvl1":
+            state.carnivore_nests[1] = state.carnivore_nests.get(1, 0) + 1
+        elif label == "saber_tooth_ad":
+            state.beasts[BeastType.SABER_TOOTH] += 1
+        elif label == "volcanic_patch_lvl3":
+            state.volcanic_patches[3] = state.volcanic_patches.get(3, 0) + 1
+        elif label == "primordial_crater_lvl3":
+            state.primordial_craters[3] = state.primordial_craters.get(3, 0) + 1
+        elif label == "alarm_clock":
+            state.alarm_clocks += 1
+        elif label == "horn_item_lvl4_ad":
+            state.horn_items[4] = state.horn_items.get(4, 0) + 1
 
     # ------------------------------------------------------------------
     # Passive generation (Primordial Crater soup + beacon recharge)

@@ -188,6 +188,36 @@ ALARM_CLOCK_UNLOCK_WAKE_UPS    = 50
 # VOLCANIC_PATCH_UNLOCK_WAKE_UPS and PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS
 # are defined in the Station constants section above.
 
+# ---------------------------------------------------------------------------
+# Event Shop
+# ---------------------------------------------------------------------------
+
+SHOP_DAY_TURNS     = 8_640  # turns per shop day (24 real-time hours)
+SHOP_NUM_DAYS      = 3
+SHOP_ITEMS_PER_DAY = 4
+SHOP_TOTAL_ITEMS   = 12     # SHOP_NUM_DAYS * SHOP_ITEMS_PER_DAY
+
+# Each entry: (day, slot_idx, cost_tuple, label)
+# cost_tuple = (big_bones, horns, fangs); (0,0,0) = free ad reward.
+# Ordered so that catalog_idx = day * SHOP_ITEMS_PER_DAY + slot_idx.
+SHOP_CATALOG: List[tuple] = [
+    # Day 0
+    (0, 0, (5,  0,  0),  "horn_item_lvl2"),
+    (0, 1, (25, 0,  0),  "volcanic_patch_lvl1"),
+    (0, 2, (0,  30, 0),  "herbivore_nest_lvl2"),
+    (0, 3, (0,  0,  0),  "mammoth_ad"),
+    # Day 1
+    (1, 0, (0,  0,  10), "volcanic_patch_lvl2"),
+    (1, 1, (0,  30, 0),  "primordial_crater_lvl1"),
+    (1, 2, (70, 0,  0),  "carnivore_nest_lvl1"),
+    (1, 3, (0,  0,  0),  "saber_tooth_ad"),
+    # Day 2
+    (2, 0, (0,  0,  40), "volcanic_patch_lvl3"),
+    (2, 1, (0,  60, 0),  "primordial_crater_lvl3"),
+    (2, 2, (80, 0,  0),  "alarm_clock"),
+    (2, 3, (0,  0,  0),  "horn_item_lvl4_ad"),
+]
+
 
 # ---------------------------------------------------------------------------
 # Upgrades  (level 0 = not purchased)

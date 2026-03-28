@@ -25,6 +25,7 @@ from .constants import (
     MAX_CURRENCY_LEVEL,
     GAME_DURATION_SECONDS,
     HERBIVORE_STATS,
+    SHOP_DAY_TURNS, SHOP_NUM_DAYS, SHOP_TOTAL_ITEMS,
 )
 
 # Ordered list of all actions — index = action integer passed to step()
@@ -45,6 +46,8 @@ _MAX_COUNT_PLANT   = 20
 _MAX_COUNT_STATION = 5
 _MAX_COUNT_ITEM    = 10
 _MAX_METEORS       = 5
+_MAX_ALARM_CLOCKS  = 3
+_MAX_SHOP_DAY      = SHOP_NUM_DAYS - 1  # 2
 
 
 def _clip01(x: float, max_val: float) -> float:
@@ -144,6 +147,9 @@ class DinosnoresEnv(gym.Env):
             r += 1.0                                   # converted meteor to soup
         if info.get("fed"):
             r += 0.5                                   # fed currency item to T-Rex
+        shop_label = info.get("shop_claimed", "")
+        if shop_label:
+            r += 3.0 if shop_label.endswith("_ad") else 1.5
         return r
 
     def action_masks(self) -> np.ndarray:
@@ -183,7 +189,8 @@ class DinosnoresEnv(gym.Env):
         # --- Alien Beacon ---
         feats.append(_clip01(s.beacon_charges,          BEACON_MAX_CHARGES))
         feats.append(_clip01(s.beacon_recharge_counter, BEACON_RECHARGE_TURNS))
-        feats.append(_clip01(s.meteors, _MAX_METEORS))
+        feats.append(_clip01(s.meteors,       _MAX_METEORS))
+        feats.append(_clip01(s.alarm_clocks,  _MAX_ALARM_CLOCKS))
 
         # --- Herbivores ---
         for t in HerbivoreType:
@@ -230,6 +237,12 @@ class DinosnoresEnv(gym.Env):
             feats.append(_clip01(s.horn_items.get(lvl, 0), _MAX_COUNT_ITEM))
         for lvl in range(1, MAX_CURRENCY_LEVEL + 1):
             feats.append(_clip01(s.fang_items.get(lvl, 0), _MAX_COUNT_ITEM))
+
+        # --- Event Shop ---
+        shop_day = min(s.turn // SHOP_DAY_TURNS, _MAX_SHOP_DAY)
+        feats.append(float(shop_day) / _MAX_SHOP_DAY)
+        for claimed in s.shop_items_claimed:
+            feats.append(1.0 if claimed else 0.0)
 
         # --- Time / grid ---
         feats.append(_clip01(s.turn,              self._max_turns))

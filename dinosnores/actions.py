@@ -134,3 +134,12 @@ class ActionType(Enum):
     BUY_BRUTISH_BEASTS  = "buy_brutish_beasts"
     BUY_GREATER_CRATERS = "buy_greater_craters"
     BUY_SOUP_STORES     = "buy_soup_stores"
+
+    # -----------------------------------------------------------------------
+    # Event Shop — day-agnostic slots (simulator resolves the concrete item
+    # based on the current shop day at execution time)
+    # -----------------------------------------------------------------------
+    SHOP_SLOT_0   = "shop_slot_0"    # today's first paid item
+    SHOP_SLOT_1   = "shop_slot_1"    # today's second paid item
+    SHOP_SLOT_2   = "shop_slot_2"    # today's third paid item
+    SHOP_CLAIM_AD = "shop_claim_ad"  # today's free ad reward
