@@ -8,7 +8,7 @@ Phase 0 – OPENING (runs once):
   2. ATTACK_TRICERATOPS  → 50 dmg kills T-Rex (1st wake-up); drops 1 lvl-1 horn
   3. USE_BEACON          → halves new T-Rex HP: 125 → 62  (handled by always-beacon rule)
   4. ATTACK_TRICERATOPS  → 50 dmg, drops 1 lvl-1 horn (T-Rex survives at 12 HP)
-  5. MERGE_HORNS         → 2× lvl-1 → 1× lvl-2 horn
+  5. MERGE_HORNS         → 2× lvl-1 → 1× lvl-2 horn  (handled by always-currency rule)
 
 Phase 1 – FILL (build stegos one at a time until grid is full):
   - Wait until soup ≥ STEGO_SOUP_COST (8,000) to commit to each stego.
@@ -23,17 +23,35 @@ Phase 2 – ATTACK LOOP (once board is full):
   - Refill the ATTACK_BATCH used slots with new stegos (plant-first, one at a time).
   - Repeat.
 
+Event Shop integration:
+  - Ad rewards (free items) are claimed as soon as they can be used efficiently:
+      Day 0 Mammoth: claim only when T-Rex HP ≤ effective Mammoth damage so it
+        can be attacked immediately — no wasted grid space holding an idle beast.
+      Day 1 Saber-Tooth: same threshold with STT damage.
+      Day 2 Lvl-4 Horn item: always claim (no beast timing needed).
+  - Paid shop slots are bought opportunistically when affordable, except the
+    Day 2 Alarm Clock (SHOP_SLOT_2) which is only bought when T-Rex HP is
+    at full health so it can be used immediately on the following turn.
+  - Beast attacks (Mammoth, STT) and USE_ALARM_CLOCK are only fired when
+    T-Rex HP ≤ effective damage (beasts) or HP == max HP (alarm clock) to
+    minimise wasted damage, mirroring the beacon's full-HP rule.
+
 Soup cost per adult Stego from scratch (at HN/VP lvl-1):
   - 2 eggs : 2 × 2,000 = 4,000 soup
   - 8 lvl-1 plants → 1 lvl-4 plant : 8 × 500 = 4,000 soup
   - Total : 8,000 soup
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .actions import ActionType
 from .state import GameState
-from .constants import HerbivoreType, MAX_CURRENCY_LEVEL
+from .constants import (
+    HerbivoreType, BeastType,
+    BEAST_STATS, BRUTISH_BEASTS_BONUS,
+    MAX_CURRENCY_LEVEL,
+    SHOP_DAY_TURNS,
+)
 
 
 ATTACK_BATCH       = 8    # stegos to attack per wave
@@ -69,43 +87,115 @@ class GreedyHeuristic:
         lvl4_plants  = state.plants.get(4, 0)
         trices       = state.adult_herbivores[HerbivoreType.TRICERATOPS]
 
+        mammoth_dmg  = _effective_beast_dmg(state, BeastType.MAMMOTH)
+        saber_dmg    = _effective_beast_dmg(state, BeastType.SABER_TOOTH)
+        shop_day     = min(state.turn // SHOP_DAY_TURNS, 2)
+
         # ----------------------------------------------------------------
-        # ALWAYS: merge bones before feeding — maximises currency value.
-        # These fire between attacks to keep bones flowing toward lvl-4.
+        # ALWAYS: process currency items — merge up, then feed at max level
+        # to avoid grid clutter and maximise currency value per item.
         # ----------------------------------------------------------------
         if has(ActionType.MERGE_BONES):
             return ActionType.MERGE_BONES
-
-        if has(ActionType.FEED_BONES) and _has_max_level_bone(state):
+        if has(ActionType.FEED_BONES) and _has_max_level_item(state.bone_items):
             return ActionType.FEED_BONES
 
+        if has(ActionType.MERGE_HORNS):
+            return ActionType.MERGE_HORNS
+        if has(ActionType.FEED_HORNS) and _has_item_at_or_above(state.horn_items, 3):
+            return ActionType.FEED_HORNS
+
+        if has(ActionType.MERGE_FANGS):
+            return ActionType.MERGE_FANGS
+        if has(ActionType.FEED_FANGS) and _has_item_at_or_above(state.fang_items, 3):
+            return ActionType.FEED_FANGS
+
         # ----------------------------------------------------------------
-        # ALWAYS: use beacon whenever T-Rex is at full HP.
-        # Handles opening steps 1 & 3 automatically.
+        # Day 2 alarm clock — purchase then use both require full HP;
+        # both must fire BEFORE the beacon so the sequence is:
+        #   Turn N  : buy clock     (T-Rex at full HP)
+        #   Turn N+1: use clock     (T-Rex still at full HP → instant kill)
+        #   Turn N+2: beacon fires  (fresh T-Rex, again at full HP)
+        # ----------------------------------------------------------------
+        if (has(ActionType.SHOP_SLOT_2) and shop_day == 2
+                and state.trex_hp == state.trex_max_hp):
+            return ActionType.SHOP_SLOT_2
+
+        if has(ActionType.USE_ALARM_CLOCK) and state.trex_hp == state.trex_max_hp:
+            return ActionType.USE_ALARM_CLOCK
+
+        # ----------------------------------------------------------------
+        # ALWAYS: use beacon when T-Rex is at full HP.
+        # Handles opening steps 1 & 3 automatically, and primes the T-Rex
+        # for efficient beast / alarm-clock kills.
         # ----------------------------------------------------------------
         if has(ActionType.USE_BEACON) and state.trex_hp == state.trex_max_hp:
             return ActionType.USE_BEACON
 
         # ----------------------------------------------------------------
-        # ALWAYS: feed meteors for free soup
+        # ALWAYS: feed meteors for free soup.
         # ----------------------------------------------------------------
         if has(ActionType.FEED_METEOR):
             return ActionType.FEED_METEOR
 
         # ----------------------------------------------------------------
+        # ALWAYS: attack beasts only when they can finish the T-Rex.
+        # Minimises wasted damage — the beacon rule above naturally halves
+        # HP to within kill range before these fire.
+        # ----------------------------------------------------------------
+        if has(ActionType.ATTACK_SABER_TOOTH) and state.trex_hp <= saber_dmg:
+            return ActionType.ATTACK_SABER_TOOTH
+        if has(ActionType.ATTACK_MAMMOTH) and state.trex_hp <= mammoth_dmg:
+            return ActionType.ATTACK_MAMMOTH
+
+        # ----------------------------------------------------------------
+        # EVENT SHOP — free ad claim (timing varies by ad type)
+        #
+        # Day 0 Mammoth / Day 1 STT: claim only when T-Rex HP is already
+        #   within the beast's kill range, so the beast attacks immediately
+        #   next turn.  This avoids holding a grid-occupying beast that
+        #   can't be used yet, and ensures the currency drop (horn/fang)
+        #   is produced at a time when it can be processed promptly.
+        # Day 2 Lvl-4 Horn item: always claim — no beast timing needed.
+        # ----------------------------------------------------------------
+        if has(ActionType.SHOP_CLAIM_AD):
+            if shop_day == 2:
+                return ActionType.SHOP_CLAIM_AD
+            elif shop_day == 0 and state.trex_hp <= mammoth_dmg:
+                return ActionType.SHOP_CLAIM_AD
+            elif shop_day == 1 and state.trex_hp <= saber_dmg:
+                return ActionType.SHOP_CLAIM_AD
+
+        # ----------------------------------------------------------------
+        # EVENT SHOP — paid items (bought opportunistically when affordable)
+        #
+        # SHOP_SLOT_2 on Day 2 is the Alarm Clock: only buy when T-Rex is
+        #   at full HP so it can be used immediately on the next turn.
+        # All other slot-2 items (HN lvl-2 on Day 0, CN on Day 1) and
+        #   slots 0/1 are bought as soon as they're affordable.
+        # Priority: Slot 2 > Slot 1 > Slot 0.
+        # ----------------------------------------------------------------
+        # Alarm clock (day 2 slot 2) is handled early above; buy all other
+        # slot-2 items (days 0/1) opportunistically here.
+        if has(ActionType.SHOP_SLOT_2) and shop_day != 2:
+            return ActionType.SHOP_SLOT_2
+        if has(ActionType.SHOP_SLOT_1):
+            return ActionType.SHOP_SLOT_1
+        if has(ActionType.SHOP_SLOT_0):
+            return ActionType.SHOP_SLOT_0
+
+        # ----------------------------------------------------------------
         # PHASE 0 — OPENING
-        # Complete once both Triceratops have attacked and their horns merged.
+        # Complete once both Triceratops have attacked and their horns
+        # have been merged (the always-currency rule above handles the
+        # actual merge; in_opening keeps us in this phase until done).
         # ----------------------------------------------------------------
         in_opening = trices > 0 or _has_mergeable_horn_pair(state)
 
         if in_opening:
-            # Steps 2 & 4: attack Triceratops (beacon fires above if T-Rex is full)
+            # Steps 2 & 4: attack Triceratops (beacon fires above when full)
             if trices > 0 and has(ActionType.ATTACK_TRICERATOPS):
                 return ActionType.ATTACK_TRICERATOPS
-
-            # Step 5: merge the two lvl-1 horns into a lvl-2
-            if has(ActionType.MERGE_HORNS):
-                return ActionType.MERGE_HORNS
 
         # ----------------------------------------------------------------
         # PHASE 2 — ATTACK LOOP
@@ -116,7 +206,7 @@ class GreedyHeuristic:
         # _batch_remaining tracks how many attacks are still owed.  It is
         # set when the trigger condition is first met and decremented each
         # time an attack action is returned.  The always-rules above handle
-        # bone merges between attacks automatically.
+        # currency merges between attacks automatically.
         # ----------------------------------------------------------------
 
         # Trigger a new wave when the board is full and soup is sufficient
@@ -222,11 +312,25 @@ class GreedyHeuristic:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _has_max_level_bone(state: GameState) -> bool:
-    return state.bone_items.get(MAX_CURRENCY_LEVEL, 0) >= 1
+def _effective_beast_dmg(state: GameState, beast_type: BeastType) -> int:
+    """Damage a beast deals accounting for the Brutish Beasts upgrade level."""
+    base = BEAST_STATS[beast_type].base_damage
+    mult = 1.0 + BRUTISH_BEASTS_BONUS[state.brutish_beasts_level]
+    return int(base * mult)
+
+
+def _has_max_level_item(item_dict: Dict[int, int]) -> bool:
+    """True if at least one currency item at MAX_CURRENCY_LEVEL exists."""
+    return item_dict.get(MAX_CURRENCY_LEVEL, 0) >= 1
+
+
+def _has_item_at_or_above(item_dict: Dict[int, int], min_level: int) -> bool:
+    """True if at least one currency item at or above min_level exists."""
+    return any(item_dict.get(lvl, 0) >= 1 for lvl in range(min_level, MAX_CURRENCY_LEVEL + 1))
 
 
 def _any_bones(state: GameState) -> bool:
+    """True if any bone items remain on the grid (gates stego build/refill phase)."""
     return any(state.bone_items.get(lvl, 0) > 0 for lvl in range(1, MAX_CURRENCY_LEVEL + 1))
 
 
