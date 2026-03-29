@@ -243,10 +243,10 @@ BRUTISH_BEASTS_BONUS: List[float] = [0.0, 0.25, 0.50, 1.00]
 MAX_GREATER_CRATERS_LEVEL = 2
 GREATER_CRATERS_BONUS: List[int] = [0, 1, 2]
 
-# Soup Stores: base capacity 100k, each level adds 100k (5 levels)
-BASE_SOUP_CAPACITY      = 100_000
+# Soup Stores: base capacity 400k; upgrades → 500k, 600k, 700k, 800k, 1000k
+BASE_SOUP_CAPACITY      = 400_000
 MAX_SOUP_STORES_LEVEL   = 5
-SOUP_STORES_BONUS: List[int] = [0, 100_000, 200_000, 300_000, 400_000, 500_000]
+SOUP_STORES_BONUS: List[int] = [0, 100_000, 200_000, 300_000, 400_000, 600_000]
 
 
 # ---------------------------------------------------------------------------

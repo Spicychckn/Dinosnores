@@ -112,9 +112,13 @@ class DinosnoresSimulator:
         self.rng = _random.Random(self.seed)
         state = GameState()
         # Starting conditions
-        state.primordial_soup = 20_000
+        state.primordial_soup = 50_000
+        state.big_bones = 20
+        state.horns = 10
+        state.adult_herbivores[HerbivoreType.STEGOSAURUS] = 1
         state.adult_herbivores[HerbivoreType.BRONTOSAURUS] = 1
         state.adult_herbivores[HerbivoreType.TRICERATOPS] = 2
+        state.plants = {3: 2}
         state.primordial_craters = {2: 1}
         return state
 
