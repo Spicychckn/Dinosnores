@@ -214,6 +214,23 @@ a per-turn reward for passive soup generation rate to make army-building valuabl
 |---|---|---|---|
 | Passive soup reward | none | rate × 0.001/turn | Rewards the economic engine; 8-stego board earns +0.041/turn vs +0.020/turn for starting board — incentivises building and maintaining a large army before attacking |
 
+**v4 changes (after run 3 — 10M steps, score 616 / 7 wake-ups):**
+
+Run 3 regressed badly. The model discovered it could farm egg spawn (+2) and egg merge (+2)
+rewards by spamming the pipeline without completing it. By turn 20595 the grid was full of
+babies (0/32), the model was stuck, and score dropped from 1325 → 616. Same exploit as the
+plant-spawn loop in run 1 — intermediate pipeline rewards can be farmed without completing
+the pipeline.
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| Egg spawn reward | +2.0 | removed | Exploited: model spammed eggs without growing adults |
+| Egg merge reward | +2.0 | removed | Same exploit — farmed +4/baby without ever completing to adult |
+| Stegosaurus grow reward | +8.0 (+5+3) | +15.0 | Compensates for lost intermediate rewards; can't be farmed (requires baby + plant) |
+| Brontosaurus grow reward | +10.0 (+5+5) | +18.0 | Same rationale |
+| Triceratops grow reward | +5.0 (+5+0) | +10.0 | Same rationale |
+| Carnivore grow reward | +6.0 | +10.0 | Same rationale |
+
 ---
 
 ## Known Approximations / TODOs

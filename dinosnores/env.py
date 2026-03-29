@@ -127,21 +127,19 @@ class DinosnoresEnv(gym.Env):
         r = 0.0
         r -= 0.01                                      # per-turn wait tax
 
-        spawned = info.get("spawned", "")
-        if spawned.endswith("_egg"):
-            r += 2.0                                   # egg spawned (plants give no reward)
-
-        if info.get("merged_egg"):
-            r += 2.0                                   # 2 eggs → 1 baby
-
         grew = info.get("grew")
         if grew:
             try:
                 h_type = HerbivoreType(grew)
-                # Scale by soup_production: stego=8, bronto=10, trice=5
-                r += 5.0 + HERBIVORE_STATS[h_type].soup_production
+                # Reward completing the pipeline to an adult; stego=+15, bronto=+18, trice=+10
+                grow_reward = {
+                    HerbivoreType.STEGOSAURUS:  15.0,
+                    HerbivoreType.BRONTOSAURUS: 18.0,
+                    HerbivoreType.TRICERATOPS:  10.0,
+                }
+                r += grow_reward[h_type]
             except ValueError:
-                r += 6.0                               # carnivore — strong attacker, no soup
+                r += 10.0                              # carnivore grown
 
         # Passive soup generation rate — rewards maintaining the economic engine
         soup_rate = sum(
