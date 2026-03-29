@@ -34,7 +34,7 @@ N_ACTIONS: int = len(ALL_ACTIONS)
 ACTION_TO_IDX: dict[ActionType, int] = {a: i for i, a in enumerate(ALL_ACTIONS)}
 
 # Upper bounds used for normalisation (values are clipped then divided)
-_MAX_SOUP_CAPACITY = BASE_SOUP_CAPACITY + max(SOUP_STORES_BONUS)  # 600 000
+_MAX_SOUP_CAPACITY = BASE_SOUP_CAPACITY + max(SOUP_STORES_BONUS)  # 1 000 000
 _MAX_TREX_HP       = 2_100   # ~83 wake-ups worth
 _MAX_WAKE_UPS      = 100
 _MAX_SCORE         = 100_000
@@ -123,7 +123,7 @@ class DinosnoresEnv(gym.Env):
           for beacon recharges.
         """
         r = 0.0
-        r -= 0.005                                     # per-turn survival cost
+        r -= 0.01                                      # per-turn wait tax
 
         spawned = info.get("spawned", "")
         if spawned.endswith("_egg"):
@@ -141,10 +141,10 @@ class DinosnoresEnv(gym.Env):
             except ValueError:
                 r += 6.0                               # carnivore — strong attacker, no soup
 
-        r += info.get("damage_dealt", 0) * 0.005       # reward attacking
+        r += info.get("damage_dealt", 0) * 0.01        # reward attacking
 
         if info.get("fed_meteor"):
-            r += 1.0                                   # converted meteor to soup
+            r += 0.2                                   # converted meteor to soup
         if info.get("fed"):
             r += 0.5                                   # fed currency item to T-Rex
         shop_label = info.get("shop_claimed", "")

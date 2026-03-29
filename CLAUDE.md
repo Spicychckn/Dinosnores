@@ -187,6 +187,22 @@ This created a local optimum where 830+ turns were spent on plant spam vs. 10 gr
 with shaped reward (≈830) dwarfing actual score reward (350). Removing plant spawn
 reward broke this loop.
 
+### Reward Shaping History
+
+**v2 changes (after run 1 — 10M steps, score 891 / 9 wake-ups):**
+
+Run 1 revealed a beacon-wait loop: the model spent ~25% of all steps on beacon → meteor
+→ wait cycles (8.6% beacon, 8.6% meteor, 8% WAIT). Root cause: `FEED_METEOR` at +1.0
+nearly offset the wait cost (−0.005 × 1080 turns per recharge cycle = −5.4), making
+the loop competitive with actually attacking. The model scored 891 vs. the heuristic's
+4250.
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| Survival cost | −0.005/turn | −0.01/turn | Stronger WAIT tax — any productive action earns it back; only idle WAITs pay the full cost with nothing in return |
+| Damage multiplier | ×0.005 | ×0.01 | Stego attack wave: +0.4 → +0.8 per turn; makes sustained attacking clearly beat beacon-waiting |
+| Meteor reward | +1.0 | +0.2 | Beacon cycle earns +1.0 total vs −5.4 wait cost — loop is no longer profitable |
+
 ---
 
 ## Known Approximations / TODOs
