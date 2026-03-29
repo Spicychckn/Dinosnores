@@ -203,6 +203,17 @@ the loop competitive with actually attacking. The model scored 891 vs. the heuri
 | Damage multiplier | ×0.005 | ×0.01 | Stego attack wave: +0.4 → +0.8 per turn; makes sustained attacking clearly beat beacon-waiting |
 | Meteor reward | +1.0 | +0.2 | Beacon cycle earns +1.0 total vs −5.4 wait cost — loop is no longer profitable |
 
+**v3 changes (after run 2 — 10M steps, score 1325 / 11-13 wake-ups):**
+
+Run 2 fixed the beacon-wait loop but the model still cycled through single stegos.
+Root cause: no incentive to maintain a large army — the reward for growing 1 stego
+and attacking it immediately was identical to growing 8 and batch-attacking. Added
+a per-turn reward for passive soup generation rate to make army-building valuable.
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| Passive soup reward | none | rate × 0.001/turn | Rewards the economic engine; 8-stego board earns +0.041/turn vs +0.020/turn for starting board — incentivises building and maintaining a large army before attacking |
+
 ---
 
 ## Known Approximations / TODOs

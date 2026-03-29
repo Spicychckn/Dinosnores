@@ -17,6 +17,7 @@ from .constants import (
     HerbivoreType, CarnivoreType, BeastType,
     GRID_SIZE, BEACON_MAX_CHARGES, BEACON_RECHARGE_TURNS,
     BASE_SOUP_CAPACITY, SOUP_STORES_BONUS,
+    PRIMORDIAL_CRATER_SOUP_PER_TURN,
     MAX_PLANT_LEVEL,
     MAX_VP_LEVEL, MAX_HN_LEVEL, MAX_CN_LEVEL, MAX_PC_LEVEL,
     MAX_MORE_SCORE_LEVEL, MAX_BYE_BYE_PLANET_LEVEL,
@@ -48,6 +49,7 @@ _MAX_COUNT_ITEM    = 10
 _MAX_METEORS       = 5
 _MAX_ALARM_CLOCKS  = 3
 _MAX_SHOP_DAY      = SHOP_NUM_DAYS - 1  # 2
+_SOUP_RATE_REWARD  = 0.001   # per soup/turn generated passively
 
 
 def _clip01(x: float, max_val: float) -> float:
@@ -140,6 +142,17 @@ class DinosnoresEnv(gym.Env):
                 r += 5.0 + HERBIVORE_STATS[h_type].soup_production
             except ValueError:
                 r += 6.0                               # carnivore — strong attacker, no soup
+
+        # Passive soup generation rate — rewards maintaining the economic engine
+        soup_rate = sum(
+            PRIMORDIAL_CRATER_SOUP_PER_TURN[lvl] * cnt
+            for lvl, cnt in self._state.primordial_craters.items()
+        )
+        soup_rate += sum(
+            HERBIVORE_STATS[h_type].soup_production * self._state.adult_herbivores[h_type]
+            for h_type in HerbivoreType
+        )
+        r += soup_rate * _SOUP_RATE_REWARD
 
         r += info.get("damage_dealt", 0) * 0.01        # reward attacking
 
