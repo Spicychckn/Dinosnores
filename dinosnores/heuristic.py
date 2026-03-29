@@ -51,11 +51,15 @@ from .constants import (
     BEAST_STATS, BRUTISH_BEASTS_BONUS,
     MAX_CURRENCY_LEVEL,
     SHOP_DAY_TURNS,
+    GAME_DURATION_SECONDS, SECONDS_PER_TURN,
 )
 
 
 ATTACK_BATCH       = 8    # stegos to attack per wave
 FREE_SPACES_BUFFER = 4    # grid spaces kept free for merging headroom
+
+_MAX_TURNS     = GAME_DURATION_SECONDS // SECONDS_PER_TURN  # 25920
+END_GAME_TURNS = 3_000   # last ~8.3 hours = sprint window
 
 _SOUP_PER_STEGO    = 8_000
 _ATTACK_THRESHOLD  = ATTACK_BATCH * _SOUP_PER_STEGO  # 64,000
@@ -111,18 +115,40 @@ class GreedyHeuristic:
             return ActionType.FEED_FANGS
 
         # ----------------------------------------------------------------
-        # Day 2 alarm clock — purchase then use both require full HP;
-        # both must fire BEFORE the beacon so the sequence is:
-        #   Turn N  : buy clock     (T-Rex at full HP)
-        #   Turn N+1: use clock     (T-Rex still at full HP → instant kill)
-        #   Turn N+2: beacon fires  (fresh T-Rex, again at full HP)
+        # SPRINT PHASE — last END_GAME_TURNS turns: dump everything.
+        # Feed all items (level restriction lifted), attack all creatures
+        # with no HP threshold, summon beasts while affordable.
+        # Alarm clock fires LAST — after all creature/beast attacks are
+        # exhausted — to avoid pushing T-Rex HP beyond dino attack range
+        # before we've spent our creatures.
         # ----------------------------------------------------------------
-        if (has(ActionType.SHOP_SLOT_2) and shop_day == 2
-                and state.trex_hp == state.trex_max_hp):
-            return ActionType.SHOP_SLOT_2
+        if _in_sprint(state):
+            if has(ActionType.FEED_BONES): return ActionType.FEED_BONES
+            if has(ActionType.FEED_HORNS): return ActionType.FEED_HORNS
+            if has(ActionType.FEED_FANGS): return ActionType.FEED_FANGS
 
-        if has(ActionType.USE_ALARM_CLOCK) and state.trex_hp == state.trex_max_hp:
-            return ActionType.USE_ALARM_CLOCK
+            if has(ActionType.FEED_METEOR): return ActionType.FEED_METEOR
+
+            if has(ActionType.USE_BEACON) and state.trex_hp == state.trex_max_hp:
+                return ActionType.USE_BEACON
+
+            for attack in (
+                ActionType.ATTACK_SABER_TOOTH,
+                ActionType.ATTACK_MAMMOTH,
+                ActionType.ATTACK_RAPTOR,
+                ActionType.ATTACK_PTERODACTYL,
+                ActionType.ATTACK_BRONTOSAURUS,
+                ActionType.ATTACK_TRICERATOPS,
+                ActionType.ATTACK_STEGOSAURUS,
+            ):
+                if has(attack): return attack
+
+            if has(ActionType.SUMMON_SABER_TOOTH): return ActionType.SUMMON_SABER_TOOTH
+            if has(ActionType.SUMMON_MAMMOTH):     return ActionType.SUMMON_MAMMOTH
+
+            if has(ActionType.USE_ALARM_CLOCK): return ActionType.USE_ALARM_CLOCK
+
+            return ActionType.WAIT
 
         # ----------------------------------------------------------------
         # ALWAYS: use beacon when T-Rex is at full HP.
@@ -169,15 +195,12 @@ class GreedyHeuristic:
         # ----------------------------------------------------------------
         # EVENT SHOP — paid items (bought opportunistically when affordable)
         #
-        # SHOP_SLOT_2 on Day 2 is the Alarm Clock: only buy when T-Rex is
-        #   at full HP so it can be used immediately on the next turn.
-        # All other slot-2 items (HN lvl-2 on Day 0, CN on Day 1) and
-        #   slots 0/1 are bought as soon as they're affordable.
-        # Priority: Slot 2 > Slot 1 > Slot 0.
+        # Day 2 slot 2 is the Alarm Clock: only buy during sprint so it
+        # doesn't occupy a grid space for thousands of idle turns.
+        # Days 0/1 slot 2 (HN lvl-2, CN) and slots 0/1 are bought
+        # immediately.  Priority: Slot 2 > Slot 1 > Slot 0.
         # ----------------------------------------------------------------
-        # Alarm clock (day 2 slot 2) is handled early above; buy all other
-        # slot-2 items (days 0/1) opportunistically here.
-        if has(ActionType.SHOP_SLOT_2) and shop_day != 2:
+        if has(ActionType.SHOP_SLOT_2) and (shop_day != 2 or _in_sprint(state)):
             return ActionType.SHOP_SLOT_2
         if has(ActionType.SHOP_SLOT_1):
             return ActionType.SHOP_SLOT_1
@@ -332,6 +355,11 @@ def _has_item_at_or_above(item_dict: Dict[int, int], min_level: int) -> bool:
 def _any_bones(state: GameState) -> bool:
     """True if any bone items remain on the grid (gates stego build/refill phase)."""
     return any(state.bone_items.get(lvl, 0) > 0 for lvl in range(1, MAX_CURRENCY_LEVEL + 1))
+
+
+def _in_sprint(state: GameState) -> bool:
+    """True when we are in the final END_GAME_TURNS turns of the event."""
+    return (_MAX_TURNS - state.turn) <= END_GAME_TURNS
 
 
 def _has_mergeable_horn_pair(state: GameState) -> bool:

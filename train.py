@@ -57,21 +57,25 @@ def _progress_bar_available() -> bool:
 
 def collect_heuristic_demos(
     n_episodes: int = 50,
-    seed: int = 0,
+    base_seed: int = 0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Run the greedy heuristic for n_episodes and record every
     (observation, action_idx) pair.  Returns two arrays:
         obs     : float32 (N, obs_dim)
         actions : int64   (N,)
+
+    Each episode uses a distinct seed (base_seed + ep) so the random
+    plant-level and egg-type outcomes vary, giving BC diverse observations
+    rather than near-identical copies of the same trajectory.
     """
-    env = DinosnoresEnv(seed=seed)
     heuristic = GreedyHeuristic()
     obs_list, action_list = [], []
     total_reward = 0.0
 
-    print(f"Collecting heuristic demonstrations ({n_episodes} episodes)...")
+    print(f"Collecting heuristic demonstrations ({n_episodes} episodes, seeds {base_seed}–{base_seed + n_episodes - 1})...")
     for ep in range(n_episodes):
+        env = DinosnoresEnv(seed=base_seed + ep)
         obs, _ = env.reset()
         done = False
         ep_reward = 0.0
@@ -89,7 +93,7 @@ def collect_heuristic_demos(
 
         total_reward += ep_reward
         print(
-            f"  Episode {ep + 1:>3}/{n_episodes} — "
+            f"  Episode {ep + 1:>3}/{n_episodes} (seed={base_seed + ep}) — "
             f"reward: {ep_reward:8.1f}  "
             f"score: {env._state.score:6}  "
             f"wake-ups: {env._state.wake_ups}"
@@ -109,9 +113,10 @@ def pretrain_bc(
     model: MaskablePPO,
     obs: np.ndarray,
     actions: np.ndarray,
-    n_epochs: int = 5,
+    n_epochs: int = 3,
     batch_size: int = 512,
     lr: float = 1e-3,
+    early_stop_delta: float = 0.01,
 ) -> None:
     """
     Behavioural cloning: minimise cross-entropy between the policy's action
@@ -119,6 +124,13 @@ def pretrain_bc(
 
     Uses the policy's own evaluate_actions() so the same network weights
     that PPO will later fine-tune are the ones being pre-trained.
+
+    Intentionally kept short (low n_epochs, early stopping on plateau) so
+    the policy is warm-started near the heuristic without collapsing onto it.
+    PPO's entropy bonus then keeps exploration alive for the fine-tuning phase.
+
+    early_stop_delta : stop if relative loss improvement < this threshold,
+                       e.g. 0.01 = stop when improvement drops below 1%.
     """
     obs_t    = torch.as_tensor(obs).to(model.device)
     action_t = torch.as_tensor(actions).to(model.device)
@@ -127,7 +139,8 @@ def pretrain_bc(
     loader   = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.Adam(model.policy.parameters(), lr=lr)
 
-    print(f"Behavioural cloning pre-training — {n_epochs} epochs, {len(obs):,} samples")
+    print(f"Behavioural cloning pre-training — up to {n_epochs} epochs, {len(obs):,} samples")
+    prev_loss = float("inf")
     for epoch in range(n_epochs):
         total_loss = 0.0
         for obs_batch, action_batch in loader:
@@ -140,7 +153,14 @@ def pretrain_bc(
             optimizer.step()
             total_loss += loss.item() * len(obs_batch)
 
-        print(f"  Epoch {epoch + 1}/{n_epochs} — loss: {total_loss / len(obs):.4f}")
+        epoch_loss = total_loss / len(obs)
+        improvement = (prev_loss - epoch_loss) / (prev_loss + 1e-8)
+        print(f"  Epoch {epoch + 1}/{n_epochs} — loss: {epoch_loss:.4f}  (Δ {improvement:+.1%})")
+
+        if epoch > 0 and improvement < early_stop_delta:
+            print(f"  Early stop: improvement {improvement:.2%} < {early_stop_delta:.0%} threshold")
+            break
+        prev_loss = epoch_loss
 
     print("Pre-training complete.\n")
 
@@ -160,6 +180,8 @@ def train(
     seed: int = 0,
     resume: str | None = None,
     pretrain_episodes: int = 50,
+    bc_epochs: int = 3,
+    bc_lr: float = 1e-3,
 ):
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -234,9 +256,9 @@ def train(
     # BC pre-training: only on a fresh run (not when resuming)
     if resume is None and pretrain_episodes > 0:
         obs_demo, action_demo = collect_heuristic_demos(
-            n_episodes=pretrain_episodes, seed=seed
+            n_episodes=pretrain_episodes, base_seed=seed
         )
-        pretrain_bc(model, obs_demo, action_demo)
+        pretrain_bc(model, obs_demo, action_demo, n_epochs=bc_epochs, lr=bc_lr)
 
     model.learn(
         total_timesteps=total_timesteps,
@@ -269,6 +291,10 @@ if __name__ == "__main__":
                         help="Path to a saved model to continue training from")
     parser.add_argument("--pretrain-episodes", type=int,  default=50,
                         help="Heuristic episodes to collect for BC pre-training (0 to skip)")
+    parser.add_argument("--bc-epochs",          type=int,  default=3,
+                        help="Max BC training epochs (early stop if loss plateaus)")
+    parser.add_argument("--bc-lr",              type=float, default=1e-3,
+                        help="Learning rate for BC pre-training")
     args = parser.parse_args()
 
     train(
@@ -279,4 +305,6 @@ if __name__ == "__main__":
         seed=args.seed,
         resume=args.resume,
         pretrain_episodes=args.pretrain_episodes,
+        bc_epochs=args.bc_epochs,
+        bc_lr=args.bc_lr,
     )
