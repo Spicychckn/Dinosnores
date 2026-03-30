@@ -175,6 +175,7 @@ def make_env(seed: int = 0):
 def train(
     total_timesteps: int = 2_000_000,
     n_envs: int = 8,
+    n_steps: int = 8192,
     save_dir: str = "models",
     log_dir: str = "logs",
     seed: int = 0,
@@ -189,6 +190,7 @@ def train(
     print(f"Observation dim : {_OBS_DIM}")
     print(f"Action count    : {N_ACTIONS}")
     print(f"Parallel envs   : {n_envs}")
+    print(f"n_steps         : {n_steps}")
     print(f"Total timesteps : {total_timesteps:,}")
     if resume:
         print(f"Resuming from   : {resume}")
@@ -242,7 +244,7 @@ def train(
             tensorboard_log=log_dir if _tensorboard_available() else None,
             seed=seed,
             # PPO hyperparameters — reasonable defaults for a discrete game env
-            n_steps=2048,
+            n_steps=n_steps,
             batch_size=256,
             n_epochs=10,
             gamma=0.995,       # high gamma: rewards are sparse and long-horizon
@@ -284,6 +286,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--timesteps",         type=int,  default=2_000_000)
     parser.add_argument("--envs",              type=int,  default=8)
+    parser.add_argument("--n-steps",           type=int,  default=8192,
+                        help="PPO rollout length per env before each update (default 8192)")
     parser.add_argument("--save-dir",          type=str,  default="models")
     parser.add_argument("--log-dir",           type=str,  default="logs")
     parser.add_argument("--seed",              type=int,  default=0)
@@ -300,6 +304,7 @@ if __name__ == "__main__":
     train(
         total_timesteps=args.timesteps,
         n_envs=args.envs,
+        n_steps=args.n_steps,
         save_dir=args.save_dir,
         log_dir=args.log_dir,
         seed=args.seed,
