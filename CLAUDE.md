@@ -231,8 +231,30 @@ the pipeline.
 | Triceratops grow reward | +5.0 (+5+0) | +10.0 | Same rationale |
 | Carnivore grow reward | +6.0 | +10.0 | Same rationale |
 
+**Run 4 findings (10M+ steps, score 1610 / 14 wake-ups):**
+
+v4 rewards fixed the baby-hoarding exploit. Pipeline completion improved dramatically
+(89 grows/episode vs run 3's 1). Score beat run 2 (1610 vs 1325). However the model
+still cycles — grow 1 stego, attack with it, repeat — rather than maintaining a
+persistent army. Plant spawning and merging dominated at 57% of actions (the model
+correctly identified these as necessary for grows, but spent far too much time on them).
+
+Root cause of army-cycling: `n_steps=2048` with 8 envs means each PPO update only
+sees 16,384 turns of experience — about 8% of a 25,920-turn episode and only ~2 beacon
+cycles. The model never observes the compounding value of keeping an army alive across
+multiple beacon cycles, so the passive soup reward (0.001/turn) is invisible on this
+horizon. The run also plateaued: 4.3M checkpoint scored 1645 but best model (saved at
+~8-9M steps) regressed to 1610.
+
+**Run 5 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| n_steps | 2048 | 8192 | 4× larger rollouts; each env now sees ~32% of an episode per update, allowing GAE to estimate value across multiple beacon cycles and making the passive soup reward visible as a long-term signal |
+
 ---
 
 ## Known Approximations / TODOs
 
-- **Next step**: continue training the RL agent with the updated reward shaping.
+- **Next step**: evaluate run 5 — check whether model builds and maintains a larger army rather than grow-attack cycling. If army-building improves, consider further n_steps increases or gamma tuning.
+- **Consider**: adding sharper_fangs and brutish_beasts purchases to heuristic (model found these organically in runs 2+).
