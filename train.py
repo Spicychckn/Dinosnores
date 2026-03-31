@@ -287,7 +287,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--timesteps",         type=int,  default=2_000_000)
     parser.add_argument("--envs",              type=int,  default=8)
-    parser.add_argument("--n-steps",           type=int,  default=8192,
+    parser.add_argument("--n-steps",           type=int,  default=2048,
                         help="PPO rollout length per env before each update (default 8192)")
     parser.add_argument("--save-dir",          type=str,  default="models")
     parser.add_argument("--log-dir",           type=str,  default="logs")
