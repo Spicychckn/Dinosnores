@@ -264,5 +264,21 @@ run 6) is expected to push this further by parallelising simulator workers acros
 
 ## Known Approximations / TODOs
 
-- **Next step**: evaluate run 5 — check whether model builds and maintains a larger army rather than grow-attack cycling. If army-building improves, consider further n_steps increases or gamma tuning.
+**Run 5 findings (10M steps, score 260 / 4 wake-ups):**
+
+Major regression. The longer n_steps horizon allowed the model to discover a new stable
+policy: beacon the T-Rex to near-zero HP early (4 wake-ups), then spend the rest of the
+episode farming passive soup reward with the T-Rex stuck at 1 HP. Root cause: meteor feed
+reward (+0.2) made the beacon+meteor cycle competitive with attacking. The model learned
+that consistently earning +0.2/meteor + passive soup was better shaped reward per turn than
+risking waking the T-Rex to a higher HP tier.
+
+**Run 6 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| Meteor feed reward | +0.2 | removed | Has caused beacon-farming loops in runs 1, 2, and 5. The soup from feeding a meteor is already intrinsically valuable — no shaped reward needed |
+| Vec env | DummyVecEnv | SubprocVecEnv | Parallelises simulator workers across all CPU cores for faster data collection |
+
+- **Next step**: evaluate run 6 — check whether removing meteor reward breaks the beacon-snipe loop. Target: beat run 4 baseline of 1610/14 wake-ups.
 - **Consider**: adding sharper_fangs and brutish_beasts purchases to heuristic (model found these organically in runs 2+).

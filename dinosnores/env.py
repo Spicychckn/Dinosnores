@@ -154,8 +154,6 @@ class DinosnoresEnv(gym.Env):
 
         r += info.get("damage_dealt", 0) * 0.01        # reward attacking
 
-        if info.get("fed_meteor"):
-            r += 0.2                                   # converted meteor to soup
         if info.get("fed"):
             r += 0.5                                   # fed currency item to T-Rex
         shop_label = info.get("shop_claimed", "")
