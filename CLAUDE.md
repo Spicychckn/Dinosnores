@@ -252,6 +252,14 @@ horizon. The run also plateaued: 4.3M checkpoint scored 1645 but best model (sav
 |---|---|---|---|
 | n_steps | 2048 | 8192 | 4× larger rollouts; each env now sees ~32% of an episode per update, allowing GAE to estimate value across multiple beacon cycles and making the passive soup reward visible as a long-term signal |
 
+Run 5 was also migrated from the original training machine (Intel i5-6500T, 4c/4t, 35W TDP) to
+a dedicated desktop (AMD Ryzen 7 7700X 8c/16t + RTX 4070 Ti Super) running WSL2 on Windows.
+The i5-6500T was thermal-throttling and crashing under sustained training load (3.5+ hours at
+full CPU causing thermal shutdown at 100°C). The new machine provides significantly more headroom:
+better cooling, 2× the cores, and GPU-accelerated network updates via CUDA. Training speed
+improved from ~854 FPS to ~1,200 FPS on DummyVecEnv; switching to SubprocVecEnv (queued for
+run 6) is expected to push this further by parallelising simulator workers across all 8 cores.
+
 ---
 
 ## Known Approximations / TODOs
