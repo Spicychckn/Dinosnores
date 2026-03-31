@@ -308,3 +308,34 @@ Comparison with run 4 (n_steps=2048, 1610/14 wake-ups):
 Hypothesis: n_steps=2048 + gae_lambda=0.98 gives the best of both worlds — frequent updates
 that prevent loop convergence, combined with a longer advantage horizon that can see the value
 of building a batch army before attacking.
+
+**Run 7 findings (10M steps, score 260 / 4 wake-ups):**
+
+Identical result to runs 5 and 6 — fully deterministic 260/4, zero variance across all 5 episodes.
+The gae_lambda change had no effect. The model converges to the same beacon-snipe + grid-clog
+local minimum regardless of the advantage horizon.
+
+Root cause identified: PPO is catastrophically forgetting the BC initialisation. The BC pre-training
+gives the model the heuristic strategy (4250/25), but PPO then corrupts it within the first few
+million steps. The beacon-snipe loop is a stable attractor with lower variance than the grow-attack
+chain — PPO gravitates toward it even though it earns far less total reward.
+
+Reward source breakdown for the heuristic:
+- Grow reward: 3615 (44%) — the dominant signal
+- Score reward: 4250 (52%) — sparse, end-of-pipeline
+- Soup rate: 295 (4%) — minor
+- Attack reward: 67 (<1%)
+
+The model is not close to earning these rewards — PPO is optimising a different objective (beacon
+consistency) rather than improving on the BC baseline.
+
+**Run 8 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| target_kl | None | 0.01 | Stop PPO updates early if KL divergence exceeds 0.01 — prevents any single update from throwing away the BC init; forces policy to improve incrementally rather than jumping to a new local minimum |
+| ent_coef | 0.05 | 0.02 | Reduced exploration pressure: BC init already provides action diversity; high entropy was amplifying drift away from the heuristic strategy |
+
+Goal: the model should treat the heuristic as a floor (≥4250) and explore from there, rather than
+regressing to 260. target_kl keeps updates conservative so the value function can learn the true
+value of the heuristic policy before the policy itself drifts away from it.

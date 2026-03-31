@@ -251,7 +251,8 @@ def train(
             gamma=0.995,       # high gamma: rewards are sparse and long-horizon
             gae_lambda=0.98,
             clip_range=0.2,
-            ent_coef=0.05,     # higher entropy to prevent early collapse with large masked action space
+            target_kl=0.01,    # stop updates early if KL diverges: prevents throwing away BC init
+            ent_coef=0.02,     # reduced from 0.05: BC init already provides diversity; less pressure to drift
             learning_rate=1e-4,
             max_grad_norm=0.5,
         )
