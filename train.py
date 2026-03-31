@@ -175,7 +175,7 @@ def make_env(seed: int = 0):
 def train(
     total_timesteps: int = 2_000_000,
     n_envs: int = 8,
-    n_steps: int = 8192,
+    n_steps: int = 2048,
     save_dir: str = "models",
     log_dir: str = "logs",
     seed: int = 0,
@@ -249,7 +249,7 @@ def train(
             batch_size=256,
             n_epochs=10,
             gamma=0.995,       # high gamma: rewards are sparse and long-horizon
-            gae_lambda=0.95,
+            gae_lambda=0.98,
             clip_range=0.2,
             ent_coef=0.05,     # higher entropy to prevent early collapse with large masked action space
             learning_rate=1e-4,

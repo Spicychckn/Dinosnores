@@ -280,5 +280,31 @@ risking waking the T-Rex to a higher HP tier.
 | Meteor feed reward | +0.2 | removed | Has caused beacon-farming loops in runs 1, 2, and 5. The soup from feeding a meteor is already intrinsically valuable — no shaped reward needed |
 | Vec env | DummyVecEnv | SubprocVecEnv | Parallelises simulator workers across all CPU cores for faster data collection |
 
-- **Next step**: evaluate run 6 — check whether removing meteor reward breaks the beacon-snipe loop. Target: beat run 4 baseline of 1610/14 wake-ups.
-- **Consider**: adding sharper_fangs and brutish_beasts purchases to heuristic (model found these organically in runs 2+).
+**Run 6 findings (10M steps, score 260 / 4 wake-ups):**
+
+No improvement over run 5 despite removing the meteor reward. The model converged to a fully
+deterministic beacon-snipe + grid-clog strategy: grow 1 stego early, snipe T-Rex HP via repeated
+beacons, then spend the rest of the episode spawning plants/eggs without completing the pipeline.
+By end-game the grid was full (0/32) with orphaned babies and unmerged plants, leaving the model
+stuck doing beacon+wait forever. Score was identical across all 5 evaluation episodes (260 ± 0).
+
+Root cause: `n_steps=8192` makes the beacon-snipe loop a stable attractor. With 65K turns per
+update, a consistent long-horizon strategy is strongly reinforced once discovered. The model can
+"plan" the full beacon-snipe sequence within a single rollout and optimise directly for it.
+
+Comparison with run 4 (n_steps=2048, 1610/14 wake-ups):
+- Run 4 grows: 445 (5.0%) — run 6 grows: 95 (3.4%)
+- Run 4 attacks: 450 (5.0%) — run 6 attacks: 100 (3.5%)
+- Run 4 beacon use: 1.5% — run 6 beacon use: 4.9%
+- Run 4 grid at end: 21/32 (healthy) — run 6 grid at end: 0/32 (clogged)
+
+**Run 7 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| n_steps | 8192 | 2048 | Revert to run 4 setting — shorter rollouts prevent beacon-snipe from becoming a stable attractor; more frequent updates allow faster correction of bad patterns |
+| gae_lambda | 0.95 | 0.98 | Increases effective GAE horizon from ~20 steps to ~50 steps, allowing the advantage estimate to connect army-building actions to the eventual wave attack (a grow cycle is ~15-20 turns; 50 steps covers 3-4 cycles) without the instability of huge rollouts |
+
+Hypothesis: n_steps=2048 + gae_lambda=0.98 gives the best of both worlds — frequent updates
+that prevent loop convergence, combined with a longer advantage horizon that can see the value
+of building a batch army before attacking.
