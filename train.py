@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
 
@@ -197,7 +197,8 @@ def train(
     print()
 
     # Parallel training environments
-    vec_env = make_vec_env(DinosnoresEnv, n_envs=n_envs, seed=seed)
+    vec_env = make_vec_env(DinosnoresEnv, n_envs=n_envs, seed=seed,
+                           vec_env_cls=SubprocVecEnv)
 
     # Separate eval environment (single, deterministic seed)
     eval_env = DummyVecEnv([make_env(seed=999)])
