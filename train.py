@@ -180,8 +180,8 @@ def train(
     log_dir: str = "logs",
     seed: int = 0,
     resume: str | None = None,
-    pretrain_episodes: int = 50,
-    bc_epochs: int = 3,
+    pretrain_episodes: int = 200,
+    bc_epochs: int = 10,
     bc_lr: float = 1e-3,
 ):
     os.makedirs(save_dir, exist_ok=True)
@@ -295,9 +295,9 @@ if __name__ == "__main__":
     parser.add_argument("--seed",              type=int,  default=0)
     parser.add_argument("--resume",            type=str,  default=None,
                         help="Path to a saved model to continue training from")
-    parser.add_argument("--pretrain-episodes", type=int,  default=50,
+    parser.add_argument("--pretrain-episodes", type=int,  default=200,
                         help="Heuristic episodes to collect for BC pre-training (0 to skip)")
-    parser.add_argument("--bc-epochs",          type=int,  default=3,
+    parser.add_argument("--bc-epochs",          type=int,  default=10,
                         help="Max BC training epochs (early stop if loss plateaus)")
     parser.add_argument("--bc-lr",              type=float, default=1e-3,
                         help="Learning rate for BC pre-training")

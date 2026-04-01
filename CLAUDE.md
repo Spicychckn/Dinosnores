@@ -339,3 +339,31 @@ consistency) rather than improving on the BC baseline.
 Goal: the model should treat the heuristic as a floor (≥4250) and explore from there, rather than
 regressing to 260. target_kl keeps updates conservative so the value function can learn the true
 value of the heuristic policy before the policy itself drifts away from it.
+
+**Run 8 findings (10M steps, score 350 / 5 wake-ups):**
+
+Marginal improvement over runs 5-7 (260/4) but still far below run 4 (1610/14). target_kl never
+triggered — approx_kl stayed at 0.0015 throughout, meaning updates were already conservative
+enough. The constraint didn't help because the problem is the DIRECTION of gradients (all pointing
+toward beacon-snipe), not the SIZE of updates.
+
+Key diagnostic: evaluated a BC-only model (50 episodes, 3 epochs, loss=0.4578) before any PPO.
+It scored only 110/2 wake-ups. The BC pre-training is NOT sufficiently imitating the heuristic —
+the model learns the rough shape (starts building the pipeline) but hasn't converged to the precise
+heuristic strategy. PPO then starts from this weak foundation and drifts to beacon-snipe because:
+1. The BC init isn't strong enough to anchor the policy
+2. Every gradient step points toward beacon-snipe (consistent reward)
+3. The pipeline requires a longer action chain before earning reward
+
+BC loss comparison: loss=1.67→0.74→0.46 over 3 epochs. Still converging — needs more epochs.
+
+**Run 9 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| pretrain_episodes | 50 | 200 | 4× more BC demonstrations — model sees more diverse game states and more complete wave cycles |
+| bc_epochs | 3 | 10 | More passes over the BC data until loss converges; 3 epochs was clearly insufficient (loss still 0.46) |
+
+Hypothesis: with a stronger BC foundation (BC model scoring closer to heuristic before PPO starts),
+PPO will have a harder time drifting to beacon-snipe and should improve on the heuristic baseline
+rather than regressing from it.
