@@ -371,3 +371,26 @@ rather than regressing from it.
 BC validation (before run 9 started): 200 episodes / 10 epochs → loss=0.0006, BC-only model
 scores 4250/25 — perfectly replicates the heuristic. All 200 BC demo episodes scored exactly
 4250/25 with shaped reward 8228.4, confirming the heuristic is fully deterministic across seeds.
+
+**Run 9 findings (10M steps, score 4250 / 25 wake-ups):**
+
+The BC floor held — no regression to beacon-snipe. PPO maintained the heuristic strategy exactly,
+with action distribution matching the heuristic (spawn_plant 37.1%, merge_plant 32.4%, attacks
+4.7%, beacon only 0.4%). approx_kl reached 0.0045 (vs 0.0015 in run 8), meaning PPO was making
+more meaningful updates than before.
+
+However, the model did not improve beyond 4250 — it essentially replayed the heuristic. This is
+the expected result of conservative exploration settings (ent_coef=0.02, target_kl=0.01): PPO
+holds the BC init but lacks the entropy pressure to search for improvements.
+
+Conclusion: the strong BC foundation (200 eps / 10 epochs) solved the regression problem.
+The next step is to loosen exploration to allow PPO to search beyond the heuristic.
+
+**Run 10 changes:**
+
+| Change | Old | New | Reason |
+|---|---|---|---|
+| ent_coef | 0.02 | 0.05 | Restore exploration pressure now that BC foundation is stable; model needs entropy to explore improvements beyond the heuristic 4250 baseline |
+
+Hypothesis: with a strong BC init (4250 floor) and restored entropy, PPO should explore
+improvements without regressing — the BC init is now strong enough to anchor the policy.

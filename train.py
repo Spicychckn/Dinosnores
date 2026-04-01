@@ -252,7 +252,7 @@ def train(
             gae_lambda=0.98,
             clip_range=0.2,
             target_kl=0.01,    # stop updates early if KL diverges: prevents throwing away BC init
-            ent_coef=0.02,     # reduced from 0.05: BC init already provides diversity; less pressure to drift
+            ent_coef=0.05,     # restored: strong BC init (4250) is stable; need entropy to explore beyond heuristic
             learning_rate=1e-4,
             max_grad_norm=0.5,
         )
