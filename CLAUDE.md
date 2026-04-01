@@ -367,3 +367,7 @@ BC loss comparison: loss=1.67→0.74→0.46 over 3 epochs. Still converging — 
 Hypothesis: with a stronger BC foundation (BC model scoring closer to heuristic before PPO starts),
 PPO will have a harder time drifting to beacon-snipe and should improve on the heuristic baseline
 rather than regressing from it.
+
+BC validation (before run 9 started): 200 episodes / 10 epochs → loss=0.0006, BC-only model
+scores 4250/25 — perfectly replicates the heuristic. All 200 BC demo episodes scored exactly
+4250/25 with shaped reward 8228.4, confirming the heuristic is fully deterministic across seeds.
