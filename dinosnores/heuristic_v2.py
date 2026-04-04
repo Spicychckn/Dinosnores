@@ -9,7 +9,14 @@ Phase 1 – OPENING + STEGO FILL  (implemented)
   Buy VP2 from Day 0 shop slot 1 (25 bones) opportunistically.
   Stego fill continues until bones >= 120 AND soup >= 300k (HN4 push trigger).
 
-Phase 2 – HN4 PUSH  (TODO)
+Phase 2 – HN4 PUSH  (implemented)
+  Part A: buy 3× HN1 (120 bones), merge 4× HN1 → HN3.
+  Horn pile: spawn trices from HN3, attack for horn_item_lvl1; claim
+  mammoth ad (horn_item_lvl2 drop); buy Day 0 shop horn item (5 bones).
+  Merge all horn items → lvl4, feed → 30 horns → buy shop HN2 (30h).
+  Part B: buy 2× HN1 (80 bones), merge HN3+HN2+2xHN1 → HN4.
+  Stego waves continue throughout to keep bones flowing.
+
 Phase 3 – MIGRATION  (TODO)
 Phase 4 – PTERO WAVES  (TODO)
 """
@@ -157,25 +164,37 @@ class GreedyHeuristicV2:
             if action is not None:
                 return action
 
-        # ----------------------------------------------------------------
-        # HN4 PUSH TRIGGER — once bones + soup thresholds are met,
-        # hand off to the (not yet implemented) push phase.
-        # Until Phase 2 is coded the stego fill loop continues below.
-        # ----------------------------------------------------------------
-        _hn4_push_ready = (
-            state.big_bones >= _HN4_PUSH_BONES
-            and state.primordial_soup >= _HN4_PUSH_SOUP
-        )
-        _hn4_built = state.herbivore_nests.get(4, 0) >= 1
-
-        # TODO (Phase 2): if _hn4_push_ready and not _hn4_built: ...
+        _hn4_built       = state.herbivore_nests.get(4, 0) >= 1
+        _bones_ready     = state.big_bones >= _HN4_PUSH_BONES
+        _soup_ready      = state.primordial_soup >= _HN4_PUSH_SOUP
+        _hn4_push_active = _bones_ready and not _hn4_built
 
         # ----------------------------------------------------------------
-        # STEGO FILL / ATTACK LOOP — same wave logic as v1.
-        # Runs during opening fill and continues until HN4 is built.
+        # HN4 PUSH — once bones ≥ 120, start buying HN1s and building
+        # toward HN4. Stego refill is suppressed (not the attack wave) so
+        # soup can accumulate passively to 300k for the migration buffer.
+        # ----------------------------------------------------------------
+        if _hn4_push_active:
+            action = self._do_hn4_push(state, has, free, grid_full)
+            if action is not None:
+                return action
+
+        # ----------------------------------------------------------------
+        # STEGO FILL / ATTACK LOOP
+        # During stego fill (bones < 120): full wave cycle.
+        # Soup accumulation (bones ≥ 120, soup < 300k): suppress both
+        # attacks AND refill — keep the full stego board intact so passive
+        # soup generation is maximised while soup climbs to 300k.
+        # During HN4 push (bones ≥ 120, soup ≥ 300k): full wave cycle
+        # resumes so bones keep flowing for HN1 purchases.
         # ----------------------------------------------------------------
         if not _hn4_built:
-            action = self._do_stego_wave(state, has, free, grid_full)
+            accumulating_soup = _bones_ready and not _soup_ready
+            action = self._do_stego_wave(
+                state, has, free, grid_full,
+                suppress_wave=accumulating_soup,
+                suppress_refill=accumulating_soup,
+            )
             if action is not None:
                 return action
 
@@ -203,11 +222,19 @@ class GreedyHeuristicV2:
         has,
         free: int,
         grid_full: bool,
+        suppress_grow_stego: bool = False,
+        suppress_wave: bool = False,
+        suppress_refill: bool = False,
     ) -> Optional[ActionType]:
         """
-        8-stego attack waves identical to v1, with one addition:
-        VP2 is obtained from Day 0 shop slot 1 (25 bones) and merged
-        automatically with the existing VP1 via MERGE_VOLCANIC_PATCH.
+        8-stego attack waves.
+
+        suppress_grow_stego: skip GROW_STEGOSAURUS so lvl4 plants are not
+          consumed before reaching lvl5 for a waiting trice baby.
+        suppress_wave: skip triggering new attack waves (keeps the stego
+          board intact while soup accumulates passively to 300k).
+        suppress_refill: skip _build_one_stego (used together with
+          suppress_wave during the soup accumulation phase).
         """
         n_stegos     = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
         stego_eggs   = state.herbivore_eggs[HerbivoreType.STEGOSAURUS]
@@ -219,7 +246,8 @@ class GreedyHeuristicV2:
             return ActionType.MERGE_VOLCANIC_PATCH
 
         # Trigger a new attack wave when conditions are met.
-        if (self._batch_remaining == 0
+        if (not suppress_wave
+                and self._batch_remaining == 0
                 and grid_full
                 and n_stegos >= ATTACK_BATCH
                 and state.primordial_soup >= _STEGO_WAVE_SOUP):
@@ -232,9 +260,10 @@ class GreedyHeuristicV2:
                 return ActionType.ATTACK_STEGOSAURUS
 
         # Refill / initial fill: build one stego at a time.
-        if self._batch_remaining == 0 and not _any_bones(state):
+        if not suppress_refill and self._batch_remaining == 0 and not _any_bones(state):
             return self._build_one_stego(
-                state, has, lvl4_plants, stego_eggs, stego_babies, grid_full, free
+                state, has, lvl4_plants, stego_eggs, stego_babies, grid_full, free,
+                suppress_grow=suppress_grow_stego,
             )
 
         return None
@@ -248,10 +277,14 @@ class GreedyHeuristicV2:
         stego_babies: int,
         grid_full: bool,
         free: int,
+        suppress_grow: bool = False,
     ) -> Optional[ActionType]:
         """
-        Identical to v1: return the next action to advance one stego through
-        the plant+egg pipeline, or None if we should WAIT.
+        Return the next action to advance one stego through the plant+egg
+        pipeline, or None if we should WAIT.
+
+        suppress_grow: skip GROW_STEGOSAURUS when a trice baby is waiting
+        for a lvl5 plant so lvl4 plants aren't consumed prematurely.
         """
         in_progress = (
             stego_eggs > 0
@@ -263,7 +296,7 @@ class GreedyHeuristicV2:
         if not can_build:
             return None
 
-        if has(ActionType.GROW_STEGOSAURUS):
+        if not suppress_grow and has(ActionType.GROW_STEGOSAURUS):
             return ActionType.GROW_STEGOSAURUS
         if has(ActionType.MERGE_STEGOSAURUS_EGG):
             return ActionType.MERGE_STEGOSAURUS_EGG
@@ -285,6 +318,132 @@ class GreedyHeuristicV2:
             return ActionType.SPAWN_HERBIVORE_EGG
         if has(ActionType.SPAWN_PLANT):
             return ActionType.SPAWN_PLANT
+
+        return None
+
+    def _do_hn4_push(
+        self,
+        state: GameState,
+        has,
+        free: int,
+        grid_full: bool,
+    ) -> Optional[ActionType]:
+        """
+        Drive the HN1 → HN3 → HN4 merge path while running the horn pile
+        to accumulate 30 spendable horns for the shop HN2 purchase.
+
+        Part A (no HN3 yet):
+          Buy HN1s until 4 HN1-equivalents exist, then let MERGE_HERBIVORE_NEST
+          (called first) collapse them to HN3 automatically.
+
+        Horn pile (HN3 exists, horns < 30):
+          Spawn trice eggs from HN3, grow trices, attack for horn_item_lvl1.
+          Mammoth ad and shop horn item are already bought by the always-rules.
+          Merge all horn items to lvl4 → feed → 30 spendable horns.
+          Shop HN2 (SHOP_SLOT_2, 30 horns) is then bought by the general
+          shop section above (gated on soup >= _HN4_PUSH_SOUP).
+
+        Part B (HN3 exists, horns >= 30 so HN2 purchase is imminent/done):
+          Buy 2 more HN1s (80 bones total). Combined with the shop HN2,
+          MERGE_HERBIVORE_NEST collapses HN3+HN2+2xHN1 → HN4.
+        """
+        has_hn3 = state.herbivore_nests.get(3, 0) >= 1
+
+        # ----------------------------------------------------------------
+        # Always: merge herbivore nests — highest priority so merges
+        # happen immediately after each purchase (frees grid space).
+        # ----------------------------------------------------------------
+        if has(ActionType.MERGE_HERBIVORE_NEST):
+            return ActionType.MERGE_HERBIVORE_NEST
+
+        # ----------------------------------------------------------------
+        # Count HN1-equivalents in the system (1×HN1=1, HN2=2, HN3=4, HN4=8)
+        # ----------------------------------------------------------------
+        hn_nodes = (
+            state.herbivore_nests.get(1, 0) * 1
+            + state.herbivore_nests.get(2, 0) * 2
+            + state.herbivore_nests.get(3, 0) * 4
+            + state.herbivore_nests.get(4, 0) * 8
+        )
+
+        # ----------------------------------------------------------------
+        # Part A: buy HN1s until we have 4 nodes (1 start + 3 new → HN3).
+        # ----------------------------------------------------------------
+        if not has_hn3 and hn_nodes < 4:
+            if has(ActionType.BUY_HERBIVORE_NEST) and free >= 1:
+                return ActionType.BUY_HERBIVORE_NEST
+
+        # ----------------------------------------------------------------
+        # Part B: once HN3 exists and we have 30 horns (shop HN2 is
+        # affordable / already purchased), buy 2 more HN1s.
+        # Shop HN2 = 2 nodes; 2×HN1 = 2 nodes; combined with HN3 (4) = 8.
+        # ----------------------------------------------------------------
+        if has_hn3 and state.horns >= 30 and hn_nodes < 8:
+            if has(ActionType.BUY_HERBIVORE_NEST) and free >= 1:
+                return ActionType.BUY_HERBIVORE_NEST
+
+        # ----------------------------------------------------------------
+        # Horn pile: grow and immediately attack triceratops from HN3 eggs.
+        # Each trice drops horn_item_lvl1; the always-rules merge + feed them.
+        # ----------------------------------------------------------------
+        if has(ActionType.ATTACK_TRICERATOPS):
+            return ActionType.ATTACK_TRICERATOPS
+
+        if has(ActionType.GROW_TRICERATOPS):
+            return ActionType.GROW_TRICERATOPS
+
+        if has(ActionType.MERGE_TRICERATOPS_EGG):
+            return ActionType.MERGE_TRICERATOPS_EGG
+
+        # Build trice pipeline when HN3 is ready and we still need horns.
+        if has_hn3 and state.horns < 30:
+            action = self._build_one_trice(state, has, free)
+            if action is not None:
+                return action
+
+        # ----------------------------------------------------------------
+        # Continue stego waves to keep bone generation flowing.
+        # Suppress GROW_STEGOSAURUS if a trice baby is waiting for a plant
+        # so lvl4 plants aren't consumed before reaching lvl5.
+        # ----------------------------------------------------------------
+        trice_baby_waiting = (
+            state.baby_herbivores[HerbivoreType.TRICERATOPS] > 0
+            and state.plants.get(5, 0) == 0
+        )
+        return self._do_stego_wave(
+            state, has, free, grid_full,
+            suppress_grow_stego=trice_baby_waiting,
+            suppress_refill=False,  # HN4 push needs stego refill for bone gen
+        )
+
+    def _build_one_trice(
+        self,
+        state: GameState,
+        has,
+        free: int,
+    ) -> Optional[ActionType]:
+        """
+        Advance one trice through the pipeline:
+          2× HN3 eggs → baby trice → lvl5 plant → adult trice.
+        Only spawns a new pipeline if fewer than 2 are already in-flight
+        (eggs + baby), so we don't flood the grid.
+        """
+        trice_eggs  = state.herbivore_eggs[HerbivoreType.TRICERATOPS]
+        trice_baby  = state.baby_herbivores[HerbivoreType.TRICERATOPS]
+        lvl5_plants = state.plants.get(5, 0)
+
+        in_flight = trice_eggs + trice_baby
+
+        # Merge plants upward if a trice baby is waiting for lvl5.
+        if trice_baby > 0 and lvl5_plants == 0:
+            if has(ActionType.MERGE_PLANT):
+                return ActionType.MERGE_PLANT
+            if free > 0 and has(ActionType.SPAWN_PLANT):
+                return ActionType.SPAWN_PLANT
+
+        # Spawn a new trice egg pair if pipeline is empty and grid has room.
+        if in_flight < 2 and free > FREE_SPACES_BUFFER and has(ActionType.SPAWN_HERBIVORE_EGG):
+            return ActionType.SPAWN_HERBIVORE_EGG
 
         return None
 
