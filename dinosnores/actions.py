@@ -100,6 +100,13 @@ class ActionType(Enum):
     BUY_PRIMORDIAL_CRATER = "buy_primordial_crater"
 
     # -----------------------------------------------------------------------
+    # Buy alarm clock from build menu
+    # Costs 100 fangs each; unlimited purchases; unlocked at 50 wake-ups.
+    # Places 1 alarm clock grid item (each USE_ALARM_CLOCK consumes 1).
+    # -----------------------------------------------------------------------
+    BUY_ALARM_CLOCK = "buy_alarm_clock"
+
+    # -----------------------------------------------------------------------
     # Merge stations
     # Combines two instances of level N into one instance of level N+1.
     # Frees 1 grid space net.  Named as MERGE_<STATION>_<FROM_LEVEL>.

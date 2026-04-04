@@ -185,6 +185,7 @@ BEACON_SOUP_FRACTION      = 1/20 # soup reward = 1/20th of soup_capacity
 
 CARNIVORE_NEST_UNLOCK_WAKE_UPS = 20
 ALARM_CLOCK_UNLOCK_WAKE_UPS    = 50
+ALARM_CLOCK_BUY_COST           = (0, 0, 100)  # (big_bones, horns, fangs) per clock from build menu
 # VOLCANIC_PATCH_UNLOCK_WAKE_UPS and PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS
 # are defined in the Station constants section above.
 

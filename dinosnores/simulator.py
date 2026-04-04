@@ -63,7 +63,7 @@ from .constants import (
     # Beacon
     BEACON_MAX_CHARGES, BEACON_RECHARGE_TURNS, BEACON_SOUP_FRACTION,
     # Unlocks
-    ALARM_CLOCK_UNLOCK_WAKE_UPS,
+    ALARM_CLOCK_UNLOCK_WAKE_UPS, ALARM_CLOCK_BUY_COST,
     # Upgrade effects
     MORE_SCORE_BONUS, SHARPER_FANGS_BONUS, BRUTISH_BEASTS_BONUS,
     GREATER_CRATERS_BONUS,
@@ -215,6 +215,11 @@ class DinosnoresSimulator:
 
         if state.alarm_clocks >= 1 or state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS:
             valid.append(ActionType.USE_ALARM_CLOCK)
+
+        if (state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS and
+                free >= 1 and
+                _can_afford(state, ALARM_CLOCK_BUY_COST)):
+            valid.append(ActionType.BUY_ALARM_CLOCK)
 
         # --- Buy stations (requires wake-up threshold, currency, 1 free grid space) ---
         if (state.wake_ups >= HERBIVORE_NEST_UNLOCK_WAKE_UPS and
@@ -521,6 +526,12 @@ class DinosnoresSimulator:
                 info["alarm_clock_consumed"] = True
             self._deal_damage(state, state.trex_hp, info)
             info["alarm_clock"] = True
+            return
+
+        # --- Buy alarm clock from build menu ---
+        if action == ActionType.BUY_ALARM_CLOCK:
+            _spend_currency(state, ALARM_CLOCK_BUY_COST)
+            state.alarm_clocks += 1
             return
 
         # --- Feed currency items (highest available level) ---
