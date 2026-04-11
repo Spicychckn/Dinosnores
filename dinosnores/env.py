@@ -48,20 +48,20 @@ ACTION_TO_IDX: dict[ActionType, int] = {a: i for i, a in enumerate(ALL_ACTIONS)}
 
 # Upper bounds used for normalisation (values are clipped then divided)
 _MAX_SOUP_CAPACITY = BASE_SOUP_CAPACITY + max(SOUP_STORES_BONUS)  # 1 000 000
-_MAX_TREX_HP       = 2_100   # ~83 wake-ups worth
-_MAX_WAKE_UPS      = 100
-_MAX_SCORE         = 100_000
-_MAX_CURRENCY      = 500
-_MAX_COUNT_HERB    = 10
-_MAX_COUNT_CARN    = 5
-_MAX_COUNT_BEAST   = 5
-_MAX_COUNT_PLANT   = 20
+_MAX_TREX_HP = 2_100  # ~83 wake-ups worth
+_MAX_WAKE_UPS = 100
+_MAX_SCORE = 100_000
+_MAX_CURRENCY = 500
+_MAX_COUNT_HERB = 10
+_MAX_COUNT_CARN = 5
+_MAX_COUNT_BEAST = 5
+_MAX_COUNT_PLANT = 20
 _MAX_COUNT_STATION = 5
-_MAX_COUNT_ITEM    = 10
-_MAX_METEORS       = 5
-_MAX_ALARM_CLOCKS  = 3
-_MAX_SHOP_DAY      = SHOP_NUM_DAYS - 1  # 2
-_SOUP_RATE_REWARD  = 0.001   # per soup/turn generated passively
+_MAX_COUNT_ITEM = 10
+_MAX_METEORS = 5
+_MAX_ALARM_CLOCKS = 3
+_MAX_SHOP_DAY = SHOP_NUM_DAYS - 1  # 2
+_SOUP_RATE_REWARD = 0.001  # per soup/turn generated passively
 
 
 def _clip01(x: float, max_val: float) -> float:
@@ -100,9 +100,7 @@ class DinosnoresEnv(gym.Env):
         self._max_turns = self.sim.max_turns
 
         self.action_space = spaces.Discrete(N_ACTIONS)
-        self.observation_space = spaces.Box(
-            low=0.0, high=1.0, shape=(_OBS_DIM,), dtype=np.float32
-        )
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(_OBS_DIM,), dtype=np.float32)
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -137,7 +135,7 @@ class DinosnoresEnv(gym.Env):
           for beacon recharges.
         """
         r = 0.0
-        r -= 0.01                                      # per-turn wait tax
+        r -= 0.01  # per-turn wait tax
 
         grew = info.get("grew")
         if grew:
@@ -145,13 +143,13 @@ class DinosnoresEnv(gym.Env):
                 h_type = HerbivoreType(grew)
                 # Reward completing the pipeline to an adult; stego=+15, bronto=+18, trice=+10
                 grow_reward = {
-                    HerbivoreType.STEGOSAURUS:  15.0,
+                    HerbivoreType.STEGOSAURUS: 15.0,
                     HerbivoreType.BRONTOSAURUS: 18.0,
-                    HerbivoreType.TRICERATOPS:  10.0,
+                    HerbivoreType.TRICERATOPS: 10.0,
                 }
                 r += grow_reward[h_type]
             except ValueError:
-                r += 10.0                              # carnivore grown
+                r += 10.0  # carnivore grown
 
         # Passive soup generation rate — rewards maintaining the economic engine
         soup_rate = sum(
@@ -164,10 +162,10 @@ class DinosnoresEnv(gym.Env):
         )
         r += soup_rate * _SOUP_RATE_REWARD
 
-        r += info.get("damage_dealt", 0) * 0.01        # reward attacking
+        r += info.get("damage_dealt", 0) * 0.01  # reward attacking
 
         if info.get("fed"):
-            r += 0.5                                   # fed currency item to T-Rex
+            r += 0.5  # fed currency item to T-Rex
         shop_label = info.get("shop_claimed", "")
         if shop_label:
             r += 3.0 if shop_label.endswith("_ad") else 1.5
@@ -204,28 +202,28 @@ class DinosnoresEnv(gym.Env):
 
         # --- Spendable currency ---
         feats.append(_clip01(s.big_bones, _MAX_CURRENCY))
-        feats.append(_clip01(s.horns,     _MAX_CURRENCY))
-        feats.append(_clip01(s.fangs,     _MAX_CURRENCY))
+        feats.append(_clip01(s.horns, _MAX_CURRENCY))
+        feats.append(_clip01(s.fangs, _MAX_CURRENCY))
 
         # --- Alien Beacon ---
-        feats.append(_clip01(s.beacon_charges,          BEACON_MAX_CHARGES))
+        feats.append(_clip01(s.beacon_charges, BEACON_MAX_CHARGES))
         feats.append(_clip01(s.beacon_recharge_counter, BEACON_RECHARGE_TURNS))
-        feats.append(_clip01(s.meteors,       _MAX_METEORS))
-        feats.append(_clip01(s.alarm_clocks,  _MAX_ALARM_CLOCKS))
+        feats.append(_clip01(s.meteors, _MAX_METEORS))
+        feats.append(_clip01(s.alarm_clocks, _MAX_ALARM_CLOCKS))
 
         # --- Herbivores ---
         for t in HerbivoreType:
-            feats.append(_clip01(s.herbivore_eggs[t],   _MAX_COUNT_HERB))
+            feats.append(_clip01(s.herbivore_eggs[t], _MAX_COUNT_HERB))
         for t in HerbivoreType:
-            feats.append(_clip01(s.baby_herbivores[t],  _MAX_COUNT_HERB))
+            feats.append(_clip01(s.baby_herbivores[t], _MAX_COUNT_HERB))
         for t in HerbivoreType:
             feats.append(_clip01(s.adult_herbivores[t], _MAX_COUNT_HERB))
 
         # --- Carnivores ---
         for t in CarnivoreType:
-            feats.append(_clip01(s.carnivore_eggs[t],   _MAX_COUNT_CARN))
+            feats.append(_clip01(s.carnivore_eggs[t], _MAX_COUNT_CARN))
         for t in CarnivoreType:
-            feats.append(_clip01(s.baby_carnivores[t],  _MAX_COUNT_CARN))
+            feats.append(_clip01(s.baby_carnivores[t], _MAX_COUNT_CARN))
         for t in CarnivoreType:
             feats.append(_clip01(s.adult_carnivores[t], _MAX_COUNT_CARN))
 
@@ -235,21 +233,21 @@ class DinosnoresEnv(gym.Env):
 
         # --- Stations (count per level) ---
         for lvl in range(1, MAX_VP_LEVEL + 1):
-            feats.append(_clip01(s.volcanic_patches.get(lvl, 0),   _MAX_COUNT_STATION))
+            feats.append(_clip01(s.volcanic_patches.get(lvl, 0), _MAX_COUNT_STATION))
         for lvl in range(1, MAX_HN_LEVEL + 1):
-            feats.append(_clip01(s.herbivore_nests.get(lvl, 0),    _MAX_COUNT_STATION))
+            feats.append(_clip01(s.herbivore_nests.get(lvl, 0), _MAX_COUNT_STATION))
         for lvl in range(1, MAX_CN_LEVEL + 1):
-            feats.append(_clip01(s.carnivore_nests.get(lvl, 0),    _MAX_COUNT_STATION))
+            feats.append(_clip01(s.carnivore_nests.get(lvl, 0), _MAX_COUNT_STATION))
         for lvl in range(1, MAX_PC_LEVEL + 1):
             feats.append(_clip01(s.primordial_craters.get(lvl, 0), _MAX_COUNT_STATION))
 
         # --- Upgrade levels ---
-        feats.append(_clip01(s.more_score_level,      MAX_MORE_SCORE_LEVEL))
-        feats.append(_clip01(s.bye_bye_planet_level,  MAX_BYE_BYE_PLANET_LEVEL))
-        feats.append(_clip01(s.sharper_fangs_level,   MAX_SHARPER_FANGS_LEVEL))
-        feats.append(_clip01(s.brutish_beasts_level,  MAX_BRUTISH_BEASTS_LEVEL))
+        feats.append(_clip01(s.more_score_level, MAX_MORE_SCORE_LEVEL))
+        feats.append(_clip01(s.bye_bye_planet_level, MAX_BYE_BYE_PLANET_LEVEL))
+        feats.append(_clip01(s.sharper_fangs_level, MAX_SHARPER_FANGS_LEVEL))
+        feats.append(_clip01(s.brutish_beasts_level, MAX_BRUTISH_BEASTS_LEVEL))
         feats.append(_clip01(s.greater_craters_level, MAX_GREATER_CRATERS_LEVEL))
-        feats.append(_clip01(s.soup_stores_level,     MAX_SOUP_STORES_LEVEL))
+        feats.append(_clip01(s.soup_stores_level, MAX_SOUP_STORES_LEVEL))
 
         # --- Currency items (dropped by creatures, not yet fed) ---
         for lvl in range(1, MAX_CURRENCY_LEVEL + 1):
@@ -266,8 +264,8 @@ class DinosnoresEnv(gym.Env):
             feats.append(1.0 if claimed else 0.0)
 
         # --- Time / grid ---
-        feats.append(_clip01(s.turn,              self._max_turns))
-        feats.append(_clip01(s.grid_available(),  GRID_SIZE))
+        feats.append(_clip01(s.turn, self._max_turns))
+        feats.append(_clip01(s.grid_available(), GRID_SIZE))
 
         return np.array(feats, dtype=np.float32)
 

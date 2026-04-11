@@ -65,9 +65,7 @@ def heuristic_agent(valid_actions, state):
     # Decide whether to spawn plant or egg next.
     # Spawn eggs only if we have at least as many plants in the pipeline
     # as babies waiting to be grown (each baby needs 8 lvl1 plant-equivalents).
-    total_plants = sum(
-        count * (2 ** (lvl - 1)) for lvl, count in state.plants.items() if count > 0
-    )
+    total_plants = sum(count * (2 ** (lvl - 1)) for lvl, count in state.plants.items() if count > 0)
     total_babies = sum(state.baby_herbivores.values()) + sum(state.baby_carnivores.values())
     plants_needed = total_babies * 8  # rough lvl1-equivalent cost per baby steg
 
@@ -105,9 +103,11 @@ def main():
         if reward > 0 or "woke_trex" in info:
             hours, rem = divmod(state.elapsed_seconds, 3600)
             mins = rem // 60
-            print(f"Turn {state.turn:6d} ({hours}h {mins:02d}m) | Action: {action.value:25s} | "
-                  f"Reward: {reward:5.0f} | Score: {state.score:6d} | "
-                  f"Wake-ups: {state.wake_ups} | T-Rex HP: {state.trex_hp}/{state.trex_max_hp}")
+            print(
+                f"Turn {state.turn:6d} ({hours}h {mins:02d}m) | Action: {action.value:25s} | "
+                f"Reward: {reward:5.0f} | Score: {state.score:6d} | "
+                f"Wake-ups: {state.wake_ups} | T-Rex HP: {state.trex_hp}/{state.trex_max_hp}"
+            )
 
         if done:
             break

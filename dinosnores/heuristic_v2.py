@@ -32,7 +32,6 @@ Phase 4 – PTERO WAVES  (implemented)
   Merge CN1+CN1 → CN2 when affordable (50 bones + 50 horns from build menu).
 """
 
-
 from .actions import ActionType
 from .constants import (
     BEAST_STATS,
@@ -51,41 +50,41 @@ from .state import GameState
 # Tuning constants
 # ---------------------------------------------------------------------------
 
-ATTACK_BATCH        = 8      # stegos to attack per wave
-FREE_SPACES_BUFFER  = 4      # grid spaces kept free for merging headroom
+ATTACK_BATCH = 8  # stegos to attack per wave
+FREE_SPACES_BUFFER = 4  # grid spaces kept free for merging headroom
 
-_MAX_TURNS          = GAME_DURATION_SECONDS // SECONDS_PER_TURN
-END_GAME_TURNS      = 3_000
+_MAX_TURNS = GAME_DURATION_SECONDS // SECONDS_PER_TURN
+END_GAME_TURNS = 3_000
 
-_SOUP_PER_STEGO     = 8_000
-_STEGO_WAVE_SOUP    = ATTACK_BATCH * _SOUP_PER_STEGO  # 64k
+_SOUP_PER_STEGO = 8_000
+_STEGO_WAVE_SOUP = ATTACK_BATCH * _SOUP_PER_STEGO  # 64k
 
 # Trigger for HN4 push — accumulated in stego fill phase
-_HN4_PUSH_SOUP      = 300_000
-_HN4_PUSH_BONES     = 120   # first tranche: 3x HN1 purchases
+_HN4_PUSH_SOUP = 300_000
+_HN4_PUSH_BONES = 120  # first tranche: 3x HN1 purchases
 
 # Trigger for CN1 purchase (Day 1 shop slot 2)
-_CN_BONES            = 70   # CN1 shop cost
-_EXTRA_HN1_BONES     = 40   # extra HN1 from build menu, bought after CN1 for Phase 4 stego supply
-_CN_TRIGGER_BONES    = _CN_BONES + _EXTRA_HN1_BONES  # 110 — afford both in one window
-_MIN_BRONTOS_FOR_CN  = 2    # bronto soup engine must be running before buying CN1
-_GRID_RESERVE_FOR_CN = 5    # grid slots needed: CN1 + buffer for egg/plant pipeline
+_CN_BONES = 70  # CN1 shop cost
+_EXTRA_HN1_BONES = 40  # extra HN1 from build menu, bought after CN1 for Phase 4 stego supply
+_CN_TRIGGER_BONES = _CN_BONES + _EXTRA_HN1_BONES  # 110 — afford both in one window
+_MIN_BRONTOS_FOR_CN = 2  # bronto soup engine must be running before buying CN1
+_GRID_RESERVE_FOR_CN = 5  # grid slots needed: CN1 + buffer for egg/plant pipeline
 
 # Migration phase soup floors — prevent draining soup to 0 while growing brontos
-_MIGRATION_PLANT_SOUP_FLOOR = 2_000   # don't spawn plants below this level
-_MIGRATION_EGG_SOUP_FLOOR   = 5_000   # don't spawn eggs below this level
-_MIGRATION_STEGO_WAVE_MIN   = 4       # attack stegos in Phase 3 when >= this many adults
-_PTERO_PHASE_SOUP_MIN       = 150_000 # minimum soup before buying the extra HN1 that
-                                       # triggers Phase 4; seeds that hit CN1 earlier
-                                       # accumulate less soup — this prevents them from
-                                       # entering Phase 4 with only 74-90k (enough for
-                                       # ~5 pteros before starvation).
+_MIGRATION_PLANT_SOUP_FLOOR = 2_000  # don't spawn plants below this level
+_MIGRATION_EGG_SOUP_FLOOR = 5_000  # don't spawn eggs below this level
+_MIGRATION_STEGO_WAVE_MIN = 4  # attack stegos in Phase 3 when >= this many adults
+_PTERO_PHASE_SOUP_MIN = 150_000  # minimum soup before buying the extra HN1 that
+# triggers Phase 4; seeds that hit CN1 earlier
+# accumulate less soup — this prevents them from
+# entering Phase 4 with only 74-90k (enough for
+# ~5 pteros before starvation).
 
 # Ptero wave constants
-_PTERO_WAVE_SIZE        = 8     # attack pteros in batches of this size
-_PTERO_EGG_SOUP_FLOOR   = 2_000 # minimum soup before spawning eggs in Phase 4
-_PTERO_PLANT_SOUP_FLOOR = 700   # minimum soup before spawning plants in Phase 4
-                                 # (plants cost 500-700; separate from egg floor)
+_PTERO_WAVE_SIZE = 8  # attack pteros in batches of this size
+_PTERO_EGG_SOUP_FLOOR = 2_000  # minimum soup before spawning eggs in Phase 4
+_PTERO_PLANT_SOUP_FLOOR = 700  # minimum soup before spawning plants in Phase 4
+# (plants cost 500-700; separate from egg floor)
 
 
 class GreedyHeuristicV2:
@@ -96,19 +95,17 @@ class GreedyHeuristicV2:
     def __init__(self):
         self._batch_remaining: int = 0  # stego attacks still owed in current wave
 
-    def choose_action(
-        self, state: GameState, valid_actions: list[ActionType]
-    ) -> ActionType:
+    def choose_action(self, state: GameState, valid_actions: list[ActionType]) -> ActionType:
         va = set(valid_actions)
 
         def has(a: ActionType) -> bool:
             return a in va
 
-        free        = state.grid_available()
-        grid_full   = free <= FREE_SPACES_BUFFER
-        shop_day    = min(state.turn // SHOP_DAY_TURNS, 2)
+        free = state.grid_available()
+        grid_full = free <= FREE_SPACES_BUFFER
+        shop_day = min(state.turn // SHOP_DAY_TURNS, 2)
         mammoth_dmg = _effective_beast_dmg(state, BeastType.MAMMOTH)
-        saber_dmg   = _effective_beast_dmg(state, BeastType.SABER_TOOTH)
+        saber_dmg = _effective_beast_dmg(state, BeastType.SABER_TOOTH)
 
         # ----------------------------------------------------------------
         # ALWAYS: merge currency items up, then feed at max level.
@@ -203,28 +200,29 @@ class GreedyHeuristicV2:
             # + crater (12/turn), the soup engine is self-sustaining regardless
             # of stego count.  Requiring stegos >= 8 was too strict since HN4
             # produces only 20% stego eggs and phase-3 attacks push them below 8.
-            if (state.herbivore_nests.get(4, 0) >= 1
-                    and state.big_bones >= _CN_TRIGGER_BONES
-                    and state.adult_herbivores[HerbivoreType.BRONTOSAURUS] >= _MIN_BRONTOS_FOR_CN
-                    and free >= _GRID_RESERVE_FOR_CN):
+            if (
+                state.herbivore_nests.get(4, 0) >= 1
+                and state.big_bones >= _CN_TRIGGER_BONES
+                and state.adult_herbivores[HerbivoreType.BRONTOSAURUS] >= _MIN_BRONTOS_FOR_CN
+                and free >= _GRID_RESERVE_FOR_CN
+            ):
                 return ActionType.SHOP_SLOT_2
 
         # ----------------------------------------------------------------
         # OPENING — buy SS1+SS2 then attack the two starting trices.
         # ----------------------------------------------------------------
-        in_opening = (
-            state.adult_herbivores[HerbivoreType.TRICERATOPS] > 0
-            or _has_mergeable_horn_pair(state)
-        )
+        in_opening = state.adult_herbivores[
+            HerbivoreType.TRICERATOPS
+        ] > 0 or _has_mergeable_horn_pair(state)
 
         if in_opening:
             action = self._do_opening(state, has)
             if action is not None:
                 return action
 
-        _hn4_built       = state.herbivore_nests.get(4, 0) >= 1
-        _bones_ready     = state.big_bones >= _HN4_PUSH_BONES
-        _soup_ready      = state.primordial_soup >= _HN4_PUSH_SOUP
+        _hn4_built = state.herbivore_nests.get(4, 0) >= 1
+        _bones_ready = state.big_bones >= _HN4_PUSH_BONES
+        _soup_ready = state.primordial_soup >= _HN4_PUSH_SOUP
         _hn4_push_active = _bones_ready and not _hn4_built
 
         # ----------------------------------------------------------------
@@ -249,7 +247,10 @@ class GreedyHeuristicV2:
         if not _hn4_built:
             accumulating_soup = _bones_ready and not _soup_ready
             action = self._do_stego_wave(
-                state, has, free, grid_full,
+                state,
+                has,
+                free,
+                grid_full,
                 suppress_wave=accumulating_soup,
                 suppress_refill=accumulating_soup,
             )
@@ -264,8 +265,7 @@ class GreedyHeuristicV2:
         # ----------------------------------------------------------------
         if _hn4_built:
             _ptero_phase = (
-                sum(state.carnivore_nests.values()) > 0
-                and state.herbivore_nests.get(1, 0) >= 1
+                sum(state.carnivore_nests.values()) > 0 and state.herbivore_nests.get(1, 0) >= 1
             )
             if _ptero_phase:
                 action = self._do_ptero_waves(state, has, free, grid_full)
@@ -286,8 +286,9 @@ class GreedyHeuristicV2:
         Beacon fires in the always-rules when T-Rex is at full HP.
         """
         # Attack the two starting trices.
-        if (state.adult_herbivores[HerbivoreType.TRICERATOPS] > 0
-                and has(ActionType.ATTACK_TRICERATOPS)):
+        if state.adult_herbivores[HerbivoreType.TRICERATOPS] > 0 and has(
+            ActionType.ATTACK_TRICERATOPS
+        ):
             return ActionType.ATTACK_TRICERATOPS
 
         return None
@@ -312,21 +313,23 @@ class GreedyHeuristicV2:
         suppress_refill: skip _build_one_stego (used together with
           suppress_wave during the soup accumulation phase).
         """
-        n_stegos     = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
-        stego_eggs   = state.herbivore_eggs[HerbivoreType.STEGOSAURUS]
+        n_stegos = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
+        stego_eggs = state.herbivore_eggs[HerbivoreType.STEGOSAURUS]
         stego_babies = state.baby_herbivores[HerbivoreType.STEGOSAURUS]
-        lvl4_plants  = state.plants.get(4, 0)
+        lvl4_plants = state.plants.get(4, 0)
 
         # Merge VP stations as soon as a pair exists (VP1+VP1 → VP2, etc.).
         if has(ActionType.MERGE_VOLCANIC_PATCH):
             return ActionType.MERGE_VOLCANIC_PATCH
 
         # Trigger a new attack wave when conditions are met.
-        if (not suppress_wave
-                and self._batch_remaining == 0
-                and grid_full
-                and n_stegos >= ATTACK_BATCH
-                and state.primordial_soup >= _STEGO_WAVE_SOUP):
+        if (
+            not suppress_wave
+            and self._batch_remaining == 0
+            and grid_full
+            and n_stegos >= ATTACK_BATCH
+            and state.primordial_soup >= _STEGO_WAVE_SOUP
+        ):
             self._batch_remaining = ATTACK_BATCH
 
         # Execute the next attack in the current wave.
@@ -338,7 +341,13 @@ class GreedyHeuristicV2:
         # Refill / initial fill: build one stego at a time.
         if not suppress_refill and self._batch_remaining == 0 and not _any_bones(state):
             return self._build_one_stego(
-                state, has, lvl4_plants, stego_eggs, stego_babies, grid_full, free,
+                state,
+                has,
+                lvl4_plants,
+                stego_eggs,
+                stego_babies,
+                grid_full,
+                free,
                 suppress_grow=suppress_grow_stego,
             )
 
@@ -362,11 +371,7 @@ class GreedyHeuristicV2:
         suppress_grow: skip GROW_STEGOSAURUS when a trice baby is waiting
         for a lvl5 plant so lvl4 plants aren't consumed prematurely.
         """
-        in_progress = (
-            stego_eggs > 0
-            or stego_babies > 0
-            or sum(state.plants.values()) > 0
-        )
+        in_progress = stego_eggs > 0 or stego_babies > 0 or sum(state.plants.values()) > 0
         can_build = in_progress or state.primordial_soup >= _SOUP_PER_STEGO
 
         if not can_build:
@@ -485,11 +490,13 @@ class GreedyHeuristicV2:
         # so lvl4 plants aren't consumed before reaching lvl5.
         # ----------------------------------------------------------------
         trice_baby_waiting = (
-            state.baby_herbivores[HerbivoreType.TRICERATOPS] > 0
-            and state.plants.get(5, 0) == 0
+            state.baby_herbivores[HerbivoreType.TRICERATOPS] > 0 and state.plants.get(5, 0) == 0
         )
         return self._do_stego_wave(
-            state, has, free, grid_full,
+            state,
+            has,
+            free,
+            grid_full,
             suppress_grow_stego=trice_baby_waiting,
             suppress_refill=False,  # HN4 push needs stego refill for bone gen
         )
@@ -506,8 +513,8 @@ class GreedyHeuristicV2:
         Only spawns a new pipeline if fewer than 2 are already in-flight
         (eggs + baby), so we don't flood the grid.
         """
-        trice_eggs  = state.herbivore_eggs[HerbivoreType.TRICERATOPS]
-        trice_baby  = state.baby_herbivores[HerbivoreType.TRICERATOPS]
+        trice_eggs = state.herbivore_eggs[HerbivoreType.TRICERATOPS]
+        trice_baby = state.baby_herbivores[HerbivoreType.TRICERATOPS]
         lvl5_plants = state.plants.get(5, 0)
 
         in_flight = trice_eggs + trice_baby
@@ -546,9 +553,9 @@ class GreedyHeuristicV2:
         guaranteed stego-egg source for ptero food (once HN1 is on the grid,
         SPAWN_HERBIVORE_EGG uses HN1 first since it is cheaper than HN4).
         """
-        n_stegos    = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
+        n_stegos = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
         bronto_baby = state.baby_herbivores[HerbivoreType.BRONTOSAURUS]
-        trice_baby  = state.baby_herbivores[HerbivoreType.TRICERATOPS]
+        trice_baby = state.baby_herbivores[HerbivoreType.TRICERATOPS]
 
         # Merge VP stations (better plants = cheaper pipelines).
         if has(ActionType.MERGE_VOLCANIC_PATCH):
@@ -563,8 +570,7 @@ class GreedyHeuristicV2:
         # rather than the strict 8 from Phase 1) so we don't WAIT idle when
         # soup is too low to spawn more eggs.  Lower threshold keeps bones
         # flowing and the T-Rex HP dropping continuously.
-        if (n_stegos >= _MIGRATION_STEGO_WAVE_MIN
-                and has(ActionType.ATTACK_STEGOSAURUS)):
+        if n_stegos >= _MIGRATION_STEGO_WAVE_MIN and has(ActionType.ATTACK_STEGOSAURUS):
             return ActionType.ATTACK_STEGOSAURUS
 
         # Complete creature pipelines in priority order.
@@ -590,9 +596,12 @@ class GreedyHeuristicV2:
             return ActionType.GROW_STEGOSAURUS
 
         # Merge all egg types (all three can pile up from HN4 RNG).
-        if has(ActionType.MERGE_BRONTOSAURUS_EGG): return ActionType.MERGE_BRONTOSAURUS_EGG
-        if has(ActionType.MERGE_TRICERATOPS_EGG):  return ActionType.MERGE_TRICERATOPS_EGG
-        if has(ActionType.MERGE_STEGOSAURUS_EGG):  return ActionType.MERGE_STEGOSAURUS_EGG
+        if has(ActionType.MERGE_BRONTOSAURUS_EGG):
+            return ActionType.MERGE_BRONTOSAURUS_EGG
+        if has(ActionType.MERGE_TRICERATOPS_EGG):
+            return ActionType.MERGE_TRICERATOPS_EGG
+        if has(ActionType.MERGE_STEGOSAURUS_EGG):
+            return ActionType.MERGE_STEGOSAURUS_EGG
 
         # Merge plants upward (all pipelines benefit).
         if has(ActionType.MERGE_PLANT):
@@ -602,31 +611,40 @@ class GreedyHeuristicV2:
         # Once HN1 is on the grid, SPAWN_HERBIVORE_EGG uses HN1 (cheaper,
         # 2000 soup vs HN4's 2750) → 100% stego eggs for ptero food in Phase 4.
         cn1_purchased = sum(state.carnivore_nests.values()) > 0
-        if (cn1_purchased
-                and state.herbivore_nests.get(1, 0) == 0
-                and state.big_bones >= _EXTRA_HN1_BONES
-                and has(ActionType.BUY_HERBIVORE_NEST)
-                and free >= 1):
+        if (
+            cn1_purchased
+            and state.herbivore_nests.get(1, 0) == 0
+            and state.big_bones >= _EXTRA_HN1_BONES
+            and has(ActionType.BUY_HERBIVORE_NEST)
+            and free >= 1
+        ):
             return ActionType.BUY_HERBIVORE_NEST
 
         # Spawn plants for waiting babies — gated by a soup floor so we
         # don't drain soup to zero and get stuck in a WAIT spiral.
         soup = state.primordial_soup
-        if (bronto_needs_plant
-                and free > 0
-                and soup >= _MIGRATION_PLANT_SOUP_FLOOR
-                and has(ActionType.SPAWN_PLANT)):
+        if (
+            bronto_needs_plant
+            and free > 0
+            and soup >= _MIGRATION_PLANT_SOUP_FLOOR
+            and has(ActionType.SPAWN_PLANT)
+        ):
             return ActionType.SPAWN_PLANT
-        if (trice_baby > 0 and state.plants.get(5, 0) == 0
-                and free > 0
-                and soup >= _MIGRATION_PLANT_SOUP_FLOOR
-                and has(ActionType.SPAWN_PLANT)):
+        if (
+            trice_baby > 0
+            and state.plants.get(5, 0) == 0
+            and free > 0
+            and soup >= _MIGRATION_PLANT_SOUP_FLOOR
+            and has(ActionType.SPAWN_PLANT)
+        ):
             return ActionType.SPAWN_PLANT
 
         # Spawn eggs from HN4 when we have headroom and a soup buffer.
-        if (free > FREE_SPACES_BUFFER
-                and soup >= _MIGRATION_EGG_SOUP_FLOOR
-                and has(ActionType.SPAWN_HERBIVORE_EGG)):
+        if (
+            free > FREE_SPACES_BUFFER
+            and soup >= _MIGRATION_EGG_SOUP_FLOOR
+            and has(ActionType.SPAWN_HERBIVORE_EGG)
+        ):
             return ActionType.SPAWN_HERBIVORE_EGG
 
         # Spawn plants to keep any in-flight pipeline moving.
@@ -635,10 +653,12 @@ class GreedyHeuristicV2:
             or sum(state.baby_herbivores.values()) > 0
             or sum(state.plants.values()) > 0
         )
-        if (in_pipeline
-                and free > 0
-                and soup >= _MIGRATION_PLANT_SOUP_FLOOR
-                and has(ActionType.SPAWN_PLANT)):
+        if (
+            in_pipeline
+            and free > 0
+            and soup >= _MIGRATION_PLANT_SOUP_FLOOR
+            and has(ActionType.SPAWN_PLANT)
+        ):
             return ActionType.SPAWN_PLANT
 
         return None
@@ -671,8 +691,8 @@ class GreedyHeuristicV2:
         CN2 can be purchased from the build menu (50 bones + 50 horns) once
         affordable; MERGE_CARNIVORE_NEST fires automatically thereafter.
         """
-        n_pteros   = state.adult_carnivores[CarnivoreType.PTERODACTYL]
-        n_stegos   = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
+        n_pteros = state.adult_carnivores[CarnivoreType.PTERODACTYL]
+        n_stegos = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
 
         ptero_eggs = state.carnivore_eggs[CarnivoreType.PTERODACTYL]
         ptero_baby = state.baby_carnivores[CarnivoreType.PTERODACTYL]
@@ -680,7 +700,7 @@ class GreedyHeuristicV2:
         stego_baby = state.baby_herbivores[HerbivoreType.STEGOSAURUS]
 
         bronto_baby = state.baby_herbivores[HerbivoreType.BRONTOSAURUS]
-        trice_baby  = state.baby_herbivores[HerbivoreType.TRICERATOPS]
+        trice_baby = state.baby_herbivores[HerbivoreType.TRICERATOPS]
 
         soup = state.primordial_soup
 
@@ -688,17 +708,21 @@ class GreedyHeuristicV2:
         # Using // 2 (not (n+1)//2) prevents treating a lone egg as a
         # complete pair and stalling the pipeline waiting for a match.
         ptero_committed = ptero_eggs // 2 + ptero_baby + n_pteros
-        stego_supply    = stego_eggs // 2 + stego_baby + n_stegos
+        stego_supply = stego_eggs // 2 + stego_baby + n_stegos
 
         # Merge stations whenever a pair is available.
-        if has(ActionType.MERGE_VOLCANIC_PATCH): return ActionType.MERGE_VOLCANIC_PATCH
-        if has(ActionType.MERGE_CARNIVORE_NEST): return ActionType.MERGE_CARNIVORE_NEST
+        if has(ActionType.MERGE_VOLCANIC_PATCH):
+            return ActionType.MERGE_VOLCANIC_PATCH
+        if has(ActionType.MERGE_CARNIVORE_NEST):
+            return ActionType.MERGE_CARNIVORE_NEST
 
         # Attack trices immediately — no soup value, take damage + horns.
-        if has(ActionType.ATTACK_TRICERATOPS): return ActionType.ATTACK_TRICERATOPS
+        if has(ActionType.ATTACK_TRICERATOPS):
+            return ActionType.ATTACK_TRICERATOPS
 
         # Attack raptors immediately — high damage (400), no reason to hold.
-        if has(ActionType.ATTACK_RAPTOR): return ActionType.ATTACK_RAPTOR
+        if has(ActionType.ATTACK_RAPTOR):
+            return ActionType.ATTACK_RAPTOR
 
         # Fire ptero wave at full target, OR early if soup is exhausted and
         # nothing more can be built (no eggs in flight, can't afford CN egg).
@@ -706,17 +730,20 @@ class GreedyHeuristicV2:
         # to recover; remaining stegos become food for the next batch.
         # "Stalled" = ptero pipeline can't advance without more soup:
         #   no baby to grow, and < 2 eggs (can't merge a lone orphan egg).
-        ptero_stalled  = ptero_baby == 0 and ptero_eggs < 2
+        ptero_stalled = ptero_baby == 0 and ptero_eggs < 2
         soup_exhausted = soup < _PTERO_EGG_SOUP_FLOOR
-        fire_early     = ptero_stalled and soup_exhausted and n_pteros >= _PTERO_WAVE_SIZE // 2
+        fire_early = ptero_stalled and soup_exhausted and n_pteros >= _PTERO_WAVE_SIZE // 2
         if (n_pteros >= _PTERO_WAVE_SIZE or fire_early) and has(ActionType.ATTACK_PTERODACTYL):
             return ActionType.ATTACK_PTERODACTYL
 
         # Complete creature pipelines: ptero first (needs stego food),
         # then bronto (passive soup), then stego (creates ptero food supply).
-        if has(ActionType.GROW_PTERODACTYL):  return ActionType.GROW_PTERODACTYL
-        if has(ActionType.GROW_BRONTOSAURUS): return ActionType.GROW_BRONTOSAURUS
-        if has(ActionType.GROW_STEGOSAURUS):  return ActionType.GROW_STEGOSAURUS
+        if has(ActionType.GROW_PTERODACTYL):
+            return ActionType.GROW_PTERODACTYL
+        if has(ActionType.GROW_BRONTOSAURUS):
+            return ActionType.GROW_BRONTOSAURUS
+        if has(ActionType.GROW_STEGOSAURUS):
+            return ActionType.GROW_STEGOSAURUS
 
         # Grow trices (horns/damage) — don't steal plants bronto is waiting for.
         bronto_needs_plant = bronto_baby > 0 and state.plants.get(6, 0) == 0
@@ -729,29 +756,36 @@ class GreedyHeuristicV2:
         # prevents the ptero pipeline from ever advancing to a full wave.
 
         # Merge egg types.
-        if has(ActionType.MERGE_PTERODACTYL_EGG):  return ActionType.MERGE_PTERODACTYL_EGG
-        if has(ActionType.MERGE_RAPTOR_EGG):        return ActionType.MERGE_RAPTOR_EGG
-        if has(ActionType.MERGE_STEGOSAURUS_EGG):   return ActionType.MERGE_STEGOSAURUS_EGG
-        if has(ActionType.MERGE_BRONTOSAURUS_EGG):  return ActionType.MERGE_BRONTOSAURUS_EGG
-        if has(ActionType.MERGE_TRICERATOPS_EGG):   return ActionType.MERGE_TRICERATOPS_EGG
+        if has(ActionType.MERGE_PTERODACTYL_EGG):
+            return ActionType.MERGE_PTERODACTYL_EGG
+        if has(ActionType.MERGE_RAPTOR_EGG):
+            return ActionType.MERGE_RAPTOR_EGG
+        if has(ActionType.MERGE_STEGOSAURUS_EGG):
+            return ActionType.MERGE_STEGOSAURUS_EGG
+        if has(ActionType.MERGE_BRONTOSAURUS_EGG):
+            return ActionType.MERGE_BRONTOSAURUS_EGG
+        if has(ActionType.MERGE_TRICERATOPS_EGG):
+            return ActionType.MERGE_TRICERATOPS_EGG
 
         # Smart plant merge: herbivore babies require EXACTLY their plant level
         # (not "at least"), so never merge a pair at the level a baby currently
         # needs.  Only merge if the lowest pair is strictly BELOW min baby need.
         min_plant_need = _min_plant_need(state)
-        lowest_pair    = _lowest_plant_pair(state)
-        if (has(ActionType.MERGE_PLANT)
-                and lowest_pair is not None
-                and lowest_pair < min_plant_need):
+        lowest_pair = _lowest_plant_pair(state)
+        if has(ActionType.MERGE_PLANT) and lowest_pair is not None and lowest_pair < min_plant_need:
             return ActionType.MERGE_PLANT
 
         # Buy a second CN1 from the build menu to merge toward CN2.
         # Shop CN1 is already on the grid; build-menu CN1 costs 50 bones + 50 horns.
         cn2_built = state.carnivore_nests.get(2, 0) >= 1 or state.carnivore_nests.get(3, 0) >= 1
-        if (not cn2_built
-                and state.carnivore_nests.get(1, 0) >= 1
-                and state.big_bones >= 50 and state.horns >= 50
-                and has(ActionType.BUY_CARNIVORE_NEST) and free >= 1):
+        if (
+            not cn2_built
+            and state.carnivore_nests.get(1, 0) >= 1
+            and state.big_bones >= 50
+            and state.horns >= 50
+            and has(ActionType.BUY_CARNIVORE_NEST)
+            and free >= 1
+        ):
             return ActionType.BUY_CARNIVORE_NEST
 
         # Spawn plants only when a baby is waiting AND no plant of the exact
@@ -759,13 +793,16 @@ class GreedyHeuristicV2:
         # plant per baby need; MERGE_PLANT will build it up from lower levels.
         if stego_baby > 0 and state.plants.get(4, 0) == 0:
             if free > 0 and soup >= _PTERO_PLANT_SOUP_FLOOR:
-                if has(ActionType.SPAWN_PLANT): return ActionType.SPAWN_PLANT
+                if has(ActionType.SPAWN_PLANT):
+                    return ActionType.SPAWN_PLANT
         if trice_baby > 0 and state.plants.get(5, 0) == 0:
             if free > 0 and soup >= _PTERO_PLANT_SOUP_FLOOR:
-                if has(ActionType.SPAWN_PLANT): return ActionType.SPAWN_PLANT
+                if has(ActionType.SPAWN_PLANT):
+                    return ActionType.SPAWN_PLANT
         if bronto_needs_plant:
             if free > 0 and soup >= _PTERO_PLANT_SOUP_FLOOR:
-                if has(ActionType.SPAWN_PLANT): return ActionType.SPAWN_PLANT
+                if has(ActionType.SPAWN_PLANT):
+                    return ActionType.SPAWN_PLANT
 
         # Spawn eggs: build ptero pipeline and keep stego food supply matched.
         if free > FREE_SPACES_BUFFER and soup >= _PTERO_EGG_SOUP_FLOOR:
@@ -783,10 +820,14 @@ class GreedyHeuristicV2:
 
     def _sprint(self, state: GameState, has) -> ActionType:
         """End-game sprint: feed everything, attack everything, buy clocks."""
-        if has(ActionType.FEED_BONES): return ActionType.FEED_BONES
-        if has(ActionType.FEED_HORNS): return ActionType.FEED_HORNS
-        if has(ActionType.FEED_FANGS): return ActionType.FEED_FANGS
-        if has(ActionType.FEED_METEOR): return ActionType.FEED_METEOR
+        if has(ActionType.FEED_BONES):
+            return ActionType.FEED_BONES
+        if has(ActionType.FEED_HORNS):
+            return ActionType.FEED_HORNS
+        if has(ActionType.FEED_FANGS):
+            return ActionType.FEED_FANGS
+        if has(ActionType.FEED_METEOR):
+            return ActionType.FEED_METEOR
 
         if has(ActionType.USE_BEACON) and state.trex_hp == state.trex_max_hp:
             return ActionType.USE_BEACON
@@ -800,12 +841,17 @@ class GreedyHeuristicV2:
             ActionType.ATTACK_TRICERATOPS,
             ActionType.ATTACK_STEGOSAURUS,
         ):
-            if has(attack): return attack
+            if has(attack):
+                return attack
 
-        if has(ActionType.BUY_ALARM_CLOCK):    return ActionType.BUY_ALARM_CLOCK
-        if has(ActionType.SUMMON_SABER_TOOTH): return ActionType.SUMMON_SABER_TOOTH
-        if has(ActionType.SUMMON_MAMMOTH):     return ActionType.SUMMON_MAMMOTH
-        if has(ActionType.USE_ALARM_CLOCK):    return ActionType.USE_ALARM_CLOCK
+        if has(ActionType.BUY_ALARM_CLOCK):
+            return ActionType.BUY_ALARM_CLOCK
+        if has(ActionType.SUMMON_SABER_TOOTH):
+            return ActionType.SUMMON_SABER_TOOTH
+        if has(ActionType.SUMMON_MAMMOTH):
+            return ActionType.SUMMON_MAMMOTH
+        if has(ActionType.USE_ALARM_CLOCK):
+            return ActionType.USE_ALARM_CLOCK
 
         return ActionType.WAIT
 
@@ -813,6 +859,7 @@ class GreedyHeuristicV2:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _effective_beast_dmg(state: GameState, beast_type: BeastType) -> int:
     base = BEAST_STATS[beast_type].base_damage
@@ -864,6 +911,7 @@ def _lowest_plant_pair(state: GameState) -> int | None:
     MERGE_PLANT always merges the lowest available pair.
     """
     from .constants import MAX_PLANT_LEVEL
+
     for lvl in range(1, MAX_PLANT_LEVEL):  # can't merge beyond max level
         if state.plants.get(lvl, 0) >= 2:
             return lvl

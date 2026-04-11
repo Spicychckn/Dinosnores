@@ -42,7 +42,6 @@ Soup cost per adult Stego from scratch (at HN/VP lvl-1):
   - Total : 8,000 soup
 """
 
-
 from .actions import ActionType
 from .constants import (
     BEAST_STATS,
@@ -56,14 +55,14 @@ from .constants import (
 )
 from .state import GameState
 
-ATTACK_BATCH       = 8    # stegos to attack per wave
-FREE_SPACES_BUFFER = 4    # grid spaces kept free for merging headroom
+ATTACK_BATCH = 8  # stegos to attack per wave
+FREE_SPACES_BUFFER = 4  # grid spaces kept free for merging headroom
 
-_MAX_TURNS     = GAME_DURATION_SECONDS // SECONDS_PER_TURN  # 25920
-END_GAME_TURNS = 3_000   # last ~8.3 hours = sprint window
+_MAX_TURNS = GAME_DURATION_SECONDS // SECONDS_PER_TURN  # 25920
+END_GAME_TURNS = 3_000  # last ~8.3 hours = sprint window
 
-_SOUP_PER_STEGO    = 8_000
-_ATTACK_THRESHOLD  = ATTACK_BATCH * _SOUP_PER_STEGO  # 64,000
+_SOUP_PER_STEGO = 8_000
+_ATTACK_THRESHOLD = ATTACK_BATCH * _SOUP_PER_STEGO  # 64,000
 
 
 class GreedyHeuristic:
@@ -76,25 +75,23 @@ class GreedyHeuristic:
     def __init__(self):
         self._batch_remaining: int = 0  # attacks still owed in the current wave
 
-    def choose_action(
-        self, state: GameState, valid_actions: list[ActionType]
-    ) -> ActionType:
+    def choose_action(self, state: GameState, valid_actions: list[ActionType]) -> ActionType:
         va = set(valid_actions)
 
         def has(a: ActionType) -> bool:
             return a in va
 
-        free         = state.grid_available()
-        grid_full    = free <= FREE_SPACES_BUFFER
-        n_stegos     = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
-        stego_eggs   = state.herbivore_eggs[HerbivoreType.STEGOSAURUS]
+        free = state.grid_available()
+        grid_full = free <= FREE_SPACES_BUFFER
+        n_stegos = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
+        stego_eggs = state.herbivore_eggs[HerbivoreType.STEGOSAURUS]
         stego_babies = state.baby_herbivores[HerbivoreType.STEGOSAURUS]
-        lvl4_plants  = state.plants.get(4, 0)
-        trices       = state.adult_herbivores[HerbivoreType.TRICERATOPS]
+        lvl4_plants = state.plants.get(4, 0)
+        trices = state.adult_herbivores[HerbivoreType.TRICERATOPS]
 
-        mammoth_dmg  = _effective_beast_dmg(state, BeastType.MAMMOTH)
-        saber_dmg    = _effective_beast_dmg(state, BeastType.SABER_TOOTH)
-        shop_day     = min(state.turn // SHOP_DAY_TURNS, 2)
+        mammoth_dmg = _effective_beast_dmg(state, BeastType.MAMMOTH)
+        saber_dmg = _effective_beast_dmg(state, BeastType.SABER_TOOTH)
+        shop_day = min(state.turn // SHOP_DAY_TURNS, 2)
 
         # ----------------------------------------------------------------
         # ALWAYS: process currency items — merge up, then feed at max level
@@ -124,11 +121,15 @@ class GreedyHeuristic:
         # before we've spent our creatures.
         # ----------------------------------------------------------------
         if _in_sprint(state):
-            if has(ActionType.FEED_BONES): return ActionType.FEED_BONES
-            if has(ActionType.FEED_HORNS): return ActionType.FEED_HORNS
-            if has(ActionType.FEED_FANGS): return ActionType.FEED_FANGS
+            if has(ActionType.FEED_BONES):
+                return ActionType.FEED_BONES
+            if has(ActionType.FEED_HORNS):
+                return ActionType.FEED_HORNS
+            if has(ActionType.FEED_FANGS):
+                return ActionType.FEED_FANGS
 
-            if has(ActionType.FEED_METEOR): return ActionType.FEED_METEOR
+            if has(ActionType.FEED_METEOR):
+                return ActionType.FEED_METEOR
 
             if has(ActionType.USE_BEACON) and state.trex_hp == state.trex_max_hp:
                 return ActionType.USE_BEACON
@@ -142,12 +143,16 @@ class GreedyHeuristic:
                 ActionType.ATTACK_TRICERATOPS,
                 ActionType.ATTACK_STEGOSAURUS,
             ):
-                if has(attack): return attack
+                if has(attack):
+                    return attack
 
-            if has(ActionType.SUMMON_SABER_TOOTH): return ActionType.SUMMON_SABER_TOOTH
-            if has(ActionType.SUMMON_MAMMOTH):     return ActionType.SUMMON_MAMMOTH
+            if has(ActionType.SUMMON_SABER_TOOTH):
+                return ActionType.SUMMON_SABER_TOOTH
+            if has(ActionType.SUMMON_MAMMOTH):
+                return ActionType.SUMMON_MAMMOTH
 
-            if has(ActionType.USE_ALARM_CLOCK): return ActionType.USE_ALARM_CLOCK
+            if has(ActionType.USE_ALARM_CLOCK):
+                return ActionType.USE_ALARM_CLOCK
 
             return ActionType.WAIT
 
@@ -234,10 +239,12 @@ class GreedyHeuristic:
         # ----------------------------------------------------------------
 
         # Trigger a new wave when the board is full and soup is sufficient
-        if (self._batch_remaining == 0
-                and grid_full
-                and n_stegos >= ATTACK_BATCH
-                and state.primordial_soup >= _ATTACK_THRESHOLD):
+        if (
+            self._batch_remaining == 0
+            and grid_full
+            and n_stegos >= ATTACK_BATCH
+            and state.primordial_soup >= _ATTACK_THRESHOLD
+        ):
             self._batch_remaining = ATTACK_BATCH
 
         # Execute the next attack in the current wave
@@ -287,11 +294,7 @@ class GreedyHeuristic:
         A new stego is only started when soup ≥ _SOUP_PER_STEGO;
         an in-progress stego continues regardless.
         """
-        in_progress = (
-            stego_eggs > 0
-            or stego_babies > 0
-            or sum(state.plants.values()) > 0
-        )
+        in_progress = stego_eggs > 0 or stego_babies > 0 or sum(state.plants.values()) > 0
         can_build = in_progress or state.primordial_soup >= _SOUP_PER_STEGO
 
         if not can_build:
@@ -335,6 +338,7 @@ class GreedyHeuristic:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _effective_beast_dmg(state: GameState, beast_type: BeastType) -> int:
     """Damage a beast deals accounting for the Brutish Beasts upgrade level."""

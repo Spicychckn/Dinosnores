@@ -122,7 +122,12 @@ class DinosnoresSimulator:
         If set, episode ends when score >= score_target.
     """
 
-    def __init__(self, max_duration_seconds: float = GAME_DURATION_SECONDS, score_target: int | None = None, seed: int | None = None):
+    def __init__(
+        self,
+        max_duration_seconds: float = GAME_DURATION_SECONDS,
+        score_target: int | None = None,
+        seed: int | None = None,
+    ):
         self.max_turns = int(max_duration_seconds / SECONDS_PER_TURN)
         self.score_target = score_target
         self.seed = seed
@@ -154,17 +159,16 @@ class DinosnoresSimulator:
         recharging or passive soup generating.  When neither holds, WAIT would
         skip to the end of the game with no benefit, so it is omitted.
         """
-        wait_useful = (
-            state.beacon_charges < BEACON_MAX_CHARGES or
-            self._soup_rate(state) > 0
-        )
+        wait_useful = state.beacon_charges < BEACON_MAX_CHARGES or self._soup_rate(state) > 0
         valid: list[ActionType] = [ActionType.WAIT] if wait_useful else []
         free = state.grid_available()
 
         # --- Spawn plant (Volcanic Patch required, 1 free grid space, soup cost) ---
-        if (_has_station(state.volcanic_patches) and
-                free >= 1 and
-                state.primordial_soup >= self.spawn_cost_plant(state)):
+        if (
+            _has_station(state.volcanic_patches)
+            and free >= 1
+            and state.primordial_soup >= self.spawn_cost_plant(state)
+        ):
             valid.append(ActionType.SPAWN_PLANT)
 
         # --- Spawn herbivore egg (Herbivore Nest required; egg type is probabilistic) ---
@@ -175,7 +179,7 @@ class DinosnoresSimulator:
 
         # --- Spawn carnivore egg (Carnivore Nest required; egg type is probabilistic) ---
         # No wake-up gate here: having a CN on the grid (however obtained) is sufficient.
-        if (_has_station(state.carnivore_nests) and free >= 1):
+        if _has_station(state.carnivore_nests) and free >= 1:
             cost = self.spawn_cost_carnivore_egg(state)
             if state.primordial_soup >= cost:
                 valid.append(ActionType.SPAWN_CARNIVORE_EGG)
@@ -193,15 +197,19 @@ class DinosnoresSimulator:
         # --- Grow herbivores (baby + plant → adult) ---
         for h_type in HerbivoreType:
             stats = HERBIVORE_STATS[h_type]
-            if (state.baby_herbivores[h_type] >= 1 and
-                    state.plants.get(stats.plant_level_required, 0) >= 1):
+            if (
+                state.baby_herbivores[h_type] >= 1
+                and state.plants.get(stats.plant_level_required, 0) >= 1
+            ):
                 valid.append(_GROW_HERBIVORE_ACTION[h_type])
 
         # --- Grow carnivores (baby + adult herbivore → adult) ---
         for c_type in CarnivoreType:
             stats = CARNIVORE_STATS[c_type]
-            if (state.baby_carnivores[c_type] >= 1 and
-                    state.adult_herbivores[stats.herbivore_food] >= 1):
+            if (
+                state.baby_carnivores[c_type] >= 1
+                and state.adult_herbivores[stats.herbivore_food] >= 1
+            ):
                 valid.append(_GROW_CARNIVORE_ACTION[c_type])
 
         # --- Merge plants (2× lvl N → 1× lvl N+1; always lowest pair) ---
@@ -211,9 +219,11 @@ class DinosnoresSimulator:
         # --- Summon beasts (currency cost + wake-up unlock + 1 free grid space) ---
         for b_type in BeastType:
             stats = BEAST_STATS[b_type]
-            if (state.wake_ups >= stats.unlock_wake_ups and
-                    free >= 1 and
-                    _can_afford(state, stats.summon_cost)):
+            if (
+                state.wake_ups >= stats.unlock_wake_ups
+                and free >= 1
+                and _can_afford(state, stats.summon_cost)
+            ):
                 valid.append(_SUMMON_BEAST_ACTION[b_type])
 
         # --- Attack with herbivores ---
@@ -241,30 +251,40 @@ class DinosnoresSimulator:
         if state.alarm_clocks >= 1 or state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS:
             valid.append(ActionType.USE_ALARM_CLOCK)
 
-        if (state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS and
-                free >= 1 and
-                _can_afford(state, ALARM_CLOCK_BUY_COST)):
+        if (
+            state.wake_ups >= ALARM_CLOCK_UNLOCK_WAKE_UPS
+            and free >= 1
+            and _can_afford(state, ALARM_CLOCK_BUY_COST)
+        ):
             valid.append(ActionType.BUY_ALARM_CLOCK)
 
         # --- Buy stations (requires wake-up threshold, currency, 1 free grid space) ---
-        if (state.wake_ups >= HERBIVORE_NEST_UNLOCK_WAKE_UPS and
-                free >= 1 and
-                _can_afford(state, STATION_BUY_COST["herbivore_nest"])):
+        if (
+            state.wake_ups >= HERBIVORE_NEST_UNLOCK_WAKE_UPS
+            and free >= 1
+            and _can_afford(state, STATION_BUY_COST["herbivore_nest"])
+        ):
             valid.append(ActionType.BUY_HERBIVORE_NEST)
 
-        if (state.wake_ups >= VOLCANIC_PATCH_UNLOCK_WAKE_UPS and
-                free >= 1 and
-                _can_afford(state, STATION_BUY_COST["volcanic_patch"])):
+        if (
+            state.wake_ups >= VOLCANIC_PATCH_UNLOCK_WAKE_UPS
+            and free >= 1
+            and _can_afford(state, STATION_BUY_COST["volcanic_patch"])
+        ):
             valid.append(ActionType.BUY_VOLCANIC_PATCH)
 
-        if (state.wake_ups >= CARNIVORE_NEST_UNLOCK_WAKE_UPS and
-                free >= 1 and
-                _can_afford(state, STATION_BUY_COST["carnivore_nest"])):
+        if (
+            state.wake_ups >= CARNIVORE_NEST_UNLOCK_WAKE_UPS
+            and free >= 1
+            and _can_afford(state, STATION_BUY_COST["carnivore_nest"])
+        ):
             valid.append(ActionType.BUY_CARNIVORE_NEST)
 
-        if (state.wake_ups >= PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS and
-                free >= 1 and
-                _can_afford(state, STATION_BUY_COST["primordial_crater"])):
+        if (
+            state.wake_ups >= PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS
+            and free >= 1
+            and _can_afford(state, STATION_BUY_COST["primordial_crater"])
+        ):
             valid.append(ActionType.BUY_PRIMORDIAL_CRATER)
 
         # --- Merge stations (one action per type; always merges lowest pair) ---
@@ -294,28 +314,34 @@ class DinosnoresSimulator:
             valid.append(ActionType.MERGE_FANGS)
 
         # --- Purchase upgrades ---
-        if (state.more_score_level < MAX_MORE_SCORE_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["more_score"][state.more_score_level])):
+        if state.more_score_level < MAX_MORE_SCORE_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["more_score"][state.more_score_level]
+        ):
             valid.append(ActionType.BUY_MORE_SCORE)
 
-        if (state.bye_bye_planet_level < MAX_BYE_BYE_PLANET_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["bye_bye_planet"][state.bye_bye_planet_level])):
+        if state.bye_bye_planet_level < MAX_BYE_BYE_PLANET_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["bye_bye_planet"][state.bye_bye_planet_level]
+        ):
             valid.append(ActionType.BUY_BYE_BYE_PLANET)
 
-        if (state.sharper_fangs_level < MAX_SHARPER_FANGS_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["sharper_fangs"][state.sharper_fangs_level])):
+        if state.sharper_fangs_level < MAX_SHARPER_FANGS_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["sharper_fangs"][state.sharper_fangs_level]
+        ):
             valid.append(ActionType.BUY_SHARPER_FANGS)
 
-        if (state.brutish_beasts_level < MAX_BRUTISH_BEASTS_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["brutish_beasts"][state.brutish_beasts_level])):
+        if state.brutish_beasts_level < MAX_BRUTISH_BEASTS_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["brutish_beasts"][state.brutish_beasts_level]
+        ):
             valid.append(ActionType.BUY_BRUTISH_BEASTS)
 
-        if (state.greater_craters_level < MAX_GREATER_CRATERS_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["greater_craters"][state.greater_craters_level])):
+        if state.greater_craters_level < MAX_GREATER_CRATERS_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["greater_craters"][state.greater_craters_level]
+        ):
             valid.append(ActionType.BUY_GREATER_CRATERS)
 
-        if (state.soup_stores_level < MAX_SOUP_STORES_LEVEL and
-                _can_afford(state, UPGRADE_COSTS["soup_stores"][state.soup_stores_level])):
+        if state.soup_stores_level < MAX_SOUP_STORES_LEVEL and _can_afford(
+            state, UPGRADE_COSTS["soup_stores"][state.soup_stores_level]
+        ):
             valid.append(ActionType.BUY_SOUP_STORES)
 
         # --- Event Shop ---
@@ -371,8 +397,9 @@ class DinosnoresSimulator:
             state.turn += 1
 
         reward = float(state.score - score_before)
-        done = (state.turn >= self.max_turns or
-                (self.score_target is not None and state.score >= self.score_target))
+        done = state.turn >= self.max_turns or (
+            self.score_target is not None and state.score >= self.score_target
+        )
 
         return state, reward, done, info
 
@@ -398,8 +425,7 @@ class DinosnoresSimulator:
     # Action execution
     # ------------------------------------------------------------------
 
-    def _execute_action(self, state: GameState, action: ActionType,
-                        info: dict[str, Any]) -> None:
+    def _execute_action(self, state: GameState, action: ActionType, info: dict[str, Any]) -> None:
 
         if action == ActionType.WAIT:
             return
@@ -518,7 +544,9 @@ class DinosnoresSimulator:
         if action in _ATTACK_BEAST_ACTION.values():
             b_type = _ACTION_TO_BEAST_ATTACK[action]
             stats = BEAST_STATS[b_type]
-            damage = int(stats.base_damage * (1.0 + BRUTISH_BEASTS_BONUS[state.brutish_beasts_level]))
+            damage = int(
+                stats.base_damage * (1.0 + BRUTISH_BEASTS_BONUS[state.brutish_beasts_level])
+            )
             state.beasts[b_type] -= 1
             _drop_currency(state, b_type)
             self._deal_damage(state, damage, info)
@@ -609,19 +637,29 @@ class DinosnoresSimulator:
 
         # --- Merge stations (lowest available pair) ---
         if action == ActionType.MERGE_VOLCANIC_PATCH:
-            _merge_station(state.volcanic_patches, _lowest_mergeable_level(state.volcanic_patches, MAX_VP_LEVEL))
+            _merge_station(
+                state.volcanic_patches,
+                _lowest_mergeable_level(state.volcanic_patches, MAX_VP_LEVEL),
+            )
             return
 
         if action == ActionType.MERGE_HERBIVORE_NEST:
-            _merge_station(state.herbivore_nests, _lowest_mergeable_level(state.herbivore_nests, MAX_HN_LEVEL))
+            _merge_station(
+                state.herbivore_nests, _lowest_mergeable_level(state.herbivore_nests, MAX_HN_LEVEL)
+            )
             return
 
         if action == ActionType.MERGE_CARNIVORE_NEST:
-            _merge_station(state.carnivore_nests, _lowest_mergeable_level(state.carnivore_nests, MAX_CN_LEVEL))
+            _merge_station(
+                state.carnivore_nests, _lowest_mergeable_level(state.carnivore_nests, MAX_CN_LEVEL)
+            )
             return
 
         if action == ActionType.MERGE_PRIMORDIAL_CRATER:
-            _merge_station(state.primordial_craters, _lowest_mergeable_level(state.primordial_craters, MAX_PC_LEVEL))
+            _merge_station(
+                state.primordial_craters,
+                _lowest_mergeable_level(state.primordial_craters, MAX_PC_LEVEL),
+            )
             return
 
         # --- Purchase upgrades ---
@@ -739,8 +777,7 @@ class DinosnoresSimulator:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _deal_damage(self, state: GameState, damage: int,
-                     info: dict[str, Any]) -> None:
+    def _deal_damage(self, state: GameState, damage: int, info: dict[str, Any]) -> None:
         effective = min(damage, state.trex_hp)
         state.trex_hp -= effective
         info.setdefault("damage_dealt", 0)
@@ -757,9 +794,9 @@ class DinosnoresSimulator:
 
         state.wake_ups += 1
         state.trex_max_hp = TREX_INITIAL_HP + TREX_HP_PER_WAKEUP * state.wake_ups
-        state.trex_hp     = state.trex_max_hp
+        state.trex_hp = state.trex_max_hp
 
-        info["woke_trex"]    = True
+        info["woke_trex"] = True
         info["score_earned"] = awarded
 
     def _sample_plant(self, vp_level: int) -> int:
@@ -849,8 +886,10 @@ class DinosnoresSimulator:
                 targets.append(self.spawn_cost_plant(state))
             if _has_station(state.herbivore_nests):
                 targets.append(self.spawn_cost_herbivore_egg(state))
-            if (_has_station(state.carnivore_nests) and
-                    state.wake_ups >= CARNIVORE_NEST_UNLOCK_WAKE_UPS):
+            if (
+                _has_station(state.carnivore_nests)
+                and state.wake_ups >= CARNIVORE_NEST_UNLOCK_WAKE_UPS
+            ):
                 targets.append(self.spawn_cost_carnivore_egg(state))
             for target in targets:
                 if state.primordial_soup < target:
@@ -882,6 +921,7 @@ class DinosnoresSimulator:
 # ------------------------------------------------------------------
 # Module-level helpers
 # ------------------------------------------------------------------
+
 
 def _lowest_mergeable_level(d: dict[int, int], max_level: int) -> int:
     """Return the lowest level in d that has ≥2 items and is below max_level."""
@@ -945,8 +985,8 @@ def _can_afford(state: GameState, cost: tuple) -> bool:
 def _spend_currency(state: GameState, cost: tuple) -> None:
     bb, h, f = cost
     state.big_bones -= bb
-    state.horns     -= h
-    state.fangs     -= f
+    state.horns -= h
+    state.fangs -= f
 
 
 # ------------------------------------------------------------------
@@ -954,53 +994,53 @@ def _spend_currency(state: GameState, cost: tuple) -> None:
 # ------------------------------------------------------------------
 
 _MERGE_HERBIVORE_EGG_ACTION = {
-    HerbivoreType.STEGOSAURUS:  ActionType.MERGE_STEGOSAURUS_EGG,
-    HerbivoreType.TRICERATOPS:  ActionType.MERGE_TRICERATOPS_EGG,
+    HerbivoreType.STEGOSAURUS: ActionType.MERGE_STEGOSAURUS_EGG,
+    HerbivoreType.TRICERATOPS: ActionType.MERGE_TRICERATOPS_EGG,
     HerbivoreType.BRONTOSAURUS: ActionType.MERGE_BRONTOSAURUS_EGG,
 }
 _ACTION_TO_HERBIVORE_EGG_MERGE = {v: k for k, v in _MERGE_HERBIVORE_EGG_ACTION.items()}
 
 _MERGE_CARNIVORE_EGG_ACTION = {
     CarnivoreType.PTERODACTYL: ActionType.MERGE_PTERODACTYL_EGG,
-    CarnivoreType.RAPTOR:      ActionType.MERGE_RAPTOR_EGG,
+    CarnivoreType.RAPTOR: ActionType.MERGE_RAPTOR_EGG,
 }
 _ACTION_TO_CARNIVORE_EGG_MERGE = {v: k for k, v in _MERGE_CARNIVORE_EGG_ACTION.items()}
 
 _GROW_HERBIVORE_ACTION = {
-    HerbivoreType.STEGOSAURUS:  ActionType.GROW_STEGOSAURUS,
-    HerbivoreType.TRICERATOPS:  ActionType.GROW_TRICERATOPS,
+    HerbivoreType.STEGOSAURUS: ActionType.GROW_STEGOSAURUS,
+    HerbivoreType.TRICERATOPS: ActionType.GROW_TRICERATOPS,
     HerbivoreType.BRONTOSAURUS: ActionType.GROW_BRONTOSAURUS,
 }
 _ACTION_TO_HERBIVORE_GROW = {v: k for k, v in _GROW_HERBIVORE_ACTION.items()}
 
 _GROW_CARNIVORE_ACTION = {
     CarnivoreType.PTERODACTYL: ActionType.GROW_PTERODACTYL,
-    CarnivoreType.RAPTOR:      ActionType.GROW_RAPTOR,
+    CarnivoreType.RAPTOR: ActionType.GROW_RAPTOR,
 }
 _ACTION_TO_CARNIVORE_GROW = {v: k for k, v in _GROW_CARNIVORE_ACTION.items()}
 
 
 _SUMMON_BEAST_ACTION = {
-    BeastType.MAMMOTH:     ActionType.SUMMON_MAMMOTH,
+    BeastType.MAMMOTH: ActionType.SUMMON_MAMMOTH,
     BeastType.SABER_TOOTH: ActionType.SUMMON_SABER_TOOTH,
 }
 _ACTION_TO_BEAST_SUMMON = {v: k for k, v in _SUMMON_BEAST_ACTION.items()}
 
 _ATTACK_HERBIVORE_ACTION = {
-    HerbivoreType.STEGOSAURUS:  ActionType.ATTACK_STEGOSAURUS,
-    HerbivoreType.TRICERATOPS:  ActionType.ATTACK_TRICERATOPS,
+    HerbivoreType.STEGOSAURUS: ActionType.ATTACK_STEGOSAURUS,
+    HerbivoreType.TRICERATOPS: ActionType.ATTACK_TRICERATOPS,
     HerbivoreType.BRONTOSAURUS: ActionType.ATTACK_BRONTOSAURUS,
 }
 _ACTION_TO_HERBIVORE_ATTACK = {v: k for k, v in _ATTACK_HERBIVORE_ACTION.items()}
 
 _ATTACK_CARNIVORE_ACTION = {
     CarnivoreType.PTERODACTYL: ActionType.ATTACK_PTERODACTYL,
-    CarnivoreType.RAPTOR:      ActionType.ATTACK_RAPTOR,
+    CarnivoreType.RAPTOR: ActionType.ATTACK_RAPTOR,
 }
 _ACTION_TO_CARNIVORE_ATTACK = {v: k for k, v in _ATTACK_CARNIVORE_ACTION.items()}
 
 _ATTACK_BEAST_ACTION = {
-    BeastType.MAMMOTH:     ActionType.ATTACK_MAMMOTH,
+    BeastType.MAMMOTH: ActionType.ATTACK_MAMMOTH,
     BeastType.SABER_TOOTH: ActionType.ATTACK_SABER_TOOTH,
 }
 _ACTION_TO_BEAST_ATTACK = {v: k for k, v in _ATTACK_BEAST_ACTION.items()}
