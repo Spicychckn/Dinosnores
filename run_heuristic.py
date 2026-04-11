@@ -19,15 +19,14 @@ import collections
 
 import numpy as np
 
-from dinosnores.env import DinosnoresEnv
-from dinosnores.simulator import DinosnoresSimulator
-from dinosnores.heuristic import GreedyHeuristic, FREE_SPACES_BUFFER, _SOUP_PER_STEGO
 from dinosnores.constants import GAME_DURATION_SECONDS, HerbivoreType
-
+from dinosnores.heuristic import _SOUP_PER_STEGO, FREE_SPACES_BUFFER, GreedyHeuristic
+from dinosnores.simulator import DinosnoresSimulator
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _is_noteworthy(info: dict, reward: float, prev_wake_ups: int, state) -> bool:
     return (
@@ -57,7 +56,7 @@ def _format_notes(info: dict) -> str:
     if info.get("merged_egg"):
         notes.append(f"egg→baby ({info['merged_egg']})")
     if info.get("merged_plant"):
-        notes.append(f"plant lvl{info['merged_plant']}→{info['merged_plant']+1}")
+        notes.append(f"plant lvl{info['merged_plant']}→{info['merged_plant'] + 1}")
     if info.get("beacon_used"):
         notes.append(f"beacon → HP={info['hp_after']}")
     if info.get("fed_meteor"):
@@ -75,6 +74,7 @@ def _format_notes(info: dict) -> str:
 # ---------------------------------------------------------------------------
 # Single episode trace
 # ---------------------------------------------------------------------------
+
 
 def run_trace(
     seed: int = 0,
@@ -115,7 +115,7 @@ def run_trace(
         if verbose or _is_noteworthy(info, reward, prev_wake_ups, state):
             hours, rem = divmod(state.elapsed_seconds, 3600)
             mins = rem // 60
-            hp_str  = f"{state.trex_hp}/{state.trex_max_hp}"
+            hp_str = f"{state.trex_hp}/{state.trex_max_hp}"
             grid_str = f"{state.grid_available()}/32"
             soup_str = f"{state.primordial_soup:,}"
             n_stegos = state.adult_herbivores[HerbivoreType.STEGOSAURUS]
@@ -123,7 +123,7 @@ def run_trace(
             # In verbose mode, annotate why the attack phase hasn't triggered yet
             if verbose and action_name == "wait" and n_stegos > 0:
                 needed = n_stegos * _SOUP_PER_STEGO
-                free   = state.grid_available()
+                free = state.grid_available()
                 if free > FREE_SPACES_BUFFER:
                     notes = notes or f"grid not full yet (free={free}, buffer={FREE_SPACES_BUFFER})"
                 elif state.primordial_soup < needed:
@@ -139,7 +139,9 @@ def run_trace(
             break
 
     print("-" * 110)
-    print(f"Episode finished — {state.turn} turns | Score: {state.score} | Wake-ups: {state.wake_ups} | Total reward: {total_reward:.1f}")
+    print(
+        f"Episode finished — {state.turn} turns | Score: {state.score} | Wake-ups: {state.wake_ups} | Total reward: {total_reward:.1f}"
+    )
     print()
     return action_counts, state.score
 
@@ -147,6 +149,7 @@ def run_trace(
 # ---------------------------------------------------------------------------
 # Multi-episode frequency table
 # ---------------------------------------------------------------------------
+
 
 def run_frequency_table(n_episodes: int = 20, seed_offset: int = 100):
     print("=" * 70)
@@ -173,12 +176,14 @@ def run_frequency_table(n_episodes: int = 20, seed_offset: int = 100):
         for k, v in ep_counts.items():
             total_counts[k] += v
         scores.append(state.score)
-        print(f"  Episode {ep+1:2d}: score={state.score:6d}  wake-ups={state.wake_ups}")
+        print(f"  Episode {ep + 1:2d}: score={state.score:6d}  wake-ups={state.wake_ups}")
 
     total_steps = sum(total_counts.values())
     print()
-    print(f"Mean score: {np.mean(scores):.0f} ± {np.std(scores):.0f}   "
-          f"(min {min(scores)}, max {max(scores)})")
+    print(
+        f"Mean score: {np.mean(scores):.0f} ± {np.std(scores):.0f}   "
+        f"(min {min(scores)}, max {max(scores)})"
+    )
     print()
     print(f"{'Action':<30}  {'Count':>8}  {'% of steps':>10}")
     print("-" * 55)
@@ -193,17 +198,16 @@ def run_frequency_table(n_episodes: int = 20, seed_offset: int = 100):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed",       type=int,  default=0)
-    parser.add_argument("--episodes",   type=int,  default=20,
-                        help="Episodes for frequency table")
-    parser.add_argument("--trace-only", action="store_true",
-                        help="Skip the frequency table")
-    parser.add_argument("--freq-only",  action="store_true",
-                        help="Skip the strategy trace")
-    parser.add_argument("--verbose",    action="store_true",
-                        help="Print every step, not just noteworthy ones")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--episodes", type=int, default=20, help="Episodes for frequency table")
+    parser.add_argument("--trace-only", action="store_true", help="Skip the frequency table")
+    parser.add_argument("--freq-only", action="store_true", help="Skip the strategy trace")
+    parser.add_argument(
+        "--verbose", action="store_true", help="Print every step, not just noteworthy ones"
+    )
     args = parser.parse_args()
 
     if not args.freq_only:

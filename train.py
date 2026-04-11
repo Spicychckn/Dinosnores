@@ -26,21 +26,21 @@ import os
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, TensorDataset
-
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from torch.utils.data import DataLoader, TensorDataset
 
-from dinosnores.env import DinosnoresEnv, ACTION_TO_IDX, N_ACTIONS, _OBS_DIM
+from dinosnores.env import _OBS_DIM, ACTION_TO_IDX, N_ACTIONS, DinosnoresEnv
 from dinosnores.heuristic import GreedyHeuristic
 
 
 def _tensorboard_available() -> bool:
     try:
         import tensorboard  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -48,8 +48,9 @@ def _tensorboard_available() -> bool:
 
 def _progress_bar_available() -> bool:
     try:
-        import tqdm  # noqa: F401
         import rich  # noqa: F401
+        import tqdm  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -73,7 +74,9 @@ def collect_heuristic_demos(
     obs_list, action_list = [], []
     total_reward = 0.0
 
-    print(f"Collecting heuristic demonstrations ({n_episodes} episodes, seeds {base_seed}–{base_seed + n_episodes - 1})...")
+    print(
+        f"Collecting heuristic demonstrations ({n_episodes} episodes, seeds {base_seed}–{base_seed + n_episodes - 1})..."
+    )
     for ep in range(n_episodes):
         env = DinosnoresEnv(seed=base_seed + ep)
         obs, _ = env.reset()
@@ -104,7 +107,7 @@ def collect_heuristic_demos(
         f"({len(obs_list):,} total steps)\n"
     )
     return (
-        np.array(obs_list,    dtype=np.float32),
+        np.array(obs_list, dtype=np.float32),
         np.array(action_list, dtype=np.int64),
     )
 
@@ -132,11 +135,11 @@ def pretrain_bc(
     early_stop_delta : stop if relative loss improvement < this threshold,
                        e.g. 0.01 = stop when improvement drops below 1%.
     """
-    obs_t    = torch.as_tensor(obs).to(model.device)
+    obs_t = torch.as_tensor(obs).to(model.device)
     action_t = torch.as_tensor(actions).to(model.device)
 
-    dataset  = TensorDataset(obs_t, action_t)
-    loader   = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = TensorDataset(obs_t, action_t)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.Adam(model.policy.parameters(), lr=lr)
 
     print(f"Behavioural cloning pre-training — up to {n_epochs} epochs, {len(obs):,} samples")
@@ -167,8 +170,10 @@ def pretrain_bc(
 
 def make_env(seed: int = 0):
     """Factory used by make_vec_env."""
+
     def _init():
         return DinosnoresEnv(seed=seed)
+
     return _init
 
 
@@ -197,8 +202,7 @@ def train(
     print()
 
     # Parallel training environments
-    vec_env = make_vec_env(DinosnoresEnv, n_envs=n_envs, seed=seed,
-                           vec_env_cls=SubprocVecEnv)
+    vec_env = make_vec_env(DinosnoresEnv, n_envs=n_envs, seed=seed, vec_env_cls=SubprocVecEnv)
 
     # Separate eval environment (single, deterministic seed)
     eval_env = DummyVecEnv([make_env(seed=999)])
@@ -231,9 +235,9 @@ def train(
             verbose=1,
             tensorboard_log=log_dir if _tensorboard_available() else None,
             custom_objects={
-                "ent_coef": 0.05,        # re-inject entropy after collapse
-                "learning_rate": 1e-4,   # smaller lr for fine-tuning
-                "max_grad_norm": 0.5,    # gradient clipping for stability
+                "ent_coef": 0.05,  # re-inject entropy after collapse
+                "learning_rate": 1e-4,  # smaller lr for fine-tuning
+                "max_grad_norm": 0.5,  # gradient clipping for stability
             },
         )
         print(f"Loaded model — resuming from {model.num_timesteps:,} timesteps\n")
@@ -248,11 +252,11 @@ def train(
             n_steps=n_steps,
             batch_size=256,
             n_epochs=10,
-            gamma=0.995,       # high gamma: rewards are sparse and long-horizon
+            gamma=0.995,  # high gamma: rewards are sparse and long-horizon
             gae_lambda=0.98,
             clip_range=0.2,
-            target_kl=0.01,    # stop updates early if KL diverges: prevents throwing away BC init
-            ent_coef=0.05,     # restored: strong BC init (4250) is stable; need entropy to explore beyond heuristic
+            target_kl=0.01,  # stop updates early if KL diverges: prevents throwing away BC init
+            ent_coef=0.05,  # restored: strong BC init (4250) is stable; need entropy to explore beyond heuristic
             learning_rate=1e-4,
             max_grad_norm=0.5,
         )
@@ -278,29 +282,41 @@ def train(
 
     # Quick evaluation of the final model
     print("\nEvaluating final model (20 episodes)...")
-    mean_reward, std_reward = evaluate_policy(
-        model, eval_env, n_eval_episodes=20, use_masking=True
-    )
+    mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20, use_masking=True)
     print(f"Mean reward: {mean_reward:.1f} ± {std_reward:.1f}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--timesteps",         type=int,  default=2_000_000)
-    parser.add_argument("--envs",              type=int,  default=8)
-    parser.add_argument("--n-steps",           type=int,  default=2048,
-                        help="PPO rollout length per env before each update (default 8192)")
-    parser.add_argument("--save-dir",          type=str,  default="models")
-    parser.add_argument("--log-dir",           type=str,  default="logs")
-    parser.add_argument("--seed",              type=int,  default=0)
-    parser.add_argument("--resume",            type=str,  default=None,
-                        help="Path to a saved model to continue training from")
-    parser.add_argument("--pretrain-episodes", type=int,  default=200,
-                        help="Heuristic episodes to collect for BC pre-training (0 to skip)")
-    parser.add_argument("--bc-epochs",          type=int,  default=10,
-                        help="Max BC training epochs (early stop if loss plateaus)")
-    parser.add_argument("--bc-lr",              type=float, default=1e-3,
-                        help="Learning rate for BC pre-training")
+    parser.add_argument("--timesteps", type=int, default=2_000_000)
+    parser.add_argument("--envs", type=int, default=8)
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=2048,
+        help="PPO rollout length per env before each update (default 8192)",
+    )
+    parser.add_argument("--save-dir", type=str, default="models")
+    parser.add_argument("--log-dir", type=str, default="logs")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--resume", type=str, default=None, help="Path to a saved model to continue training from"
+    )
+    parser.add_argument(
+        "--pretrain-episodes",
+        type=int,
+        default=200,
+        help="Heuristic episodes to collect for BC pre-training (0 to skip)",
+    )
+    parser.add_argument(
+        "--bc-epochs",
+        type=int,
+        default=10,
+        help="Max BC training epochs (early stop if loss plateaus)",
+    )
+    parser.add_argument(
+        "--bc-lr", type=float, default=1e-3, help="Learning rate for BC pre-training"
+    )
     args = parser.parse_args()
 
     train(

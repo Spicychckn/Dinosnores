@@ -17,18 +17,17 @@ Usage
 
 import argparse
 import collections
-from typing import Optional
 
 import numpy as np
 from sb3_contrib import MaskablePPO
 
-from dinosnores.env import DinosnoresEnv, ALL_ACTIONS
 from dinosnores.constants import GAME_DURATION_SECONDS
-
+from dinosnores.env import ALL_ACTIONS, DinosnoresEnv
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _pick_action(model, obs, masks) -> int:
     action, _ = model.predict(obs, action_masks=masks, deterministic=True)
@@ -56,15 +55,18 @@ def _is_noteworthy(info: dict, reward: float, prev_wake_ups: int, state) -> bool
 # Single episode trace
 # ---------------------------------------------------------------------------
 
+
 def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_SECONDS):
     env = DinosnoresEnv(seed=seed, max_duration_seconds=max_duration_seconds)
     obs, _ = env.reset()
     state = env._state
 
     print("=" * 70)
-    print("STRATEGY TRACE  (deterministic rollout, seed={})".format(seed))
+    print(f"STRATEGY TRACE  (deterministic rollout, seed={seed})")
     print("=" * 70)
-    print(f"{'Turn':>6}  {'Time':>7}  {'Action':<28}  {'T-Rex HP':>10}  {'Grid':>6}  {'Score':>6}  Notes")
+    print(
+        f"{'Turn':>6}  {'Time':>7}  {'Action':<28}  {'T-Rex HP':>10}  {'Grid':>6}  {'Score':>6}  Notes"
+    )
     print("-" * 100)
 
     total_reward = 0.0
@@ -92,7 +94,7 @@ def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_
         if info.get("merged_egg"):
             notes.append(f"egg→baby ({info['merged_egg']})")
         if info.get("merged_plant"):
-            notes.append(f"plant lvl{info['merged_plant']}→{info['merged_plant']+1}")
+            notes.append(f"plant lvl{info['merged_plant']}→{info['merged_plant'] + 1}")
         if info.get("beacon_used"):
             notes.append(f"beacon → HP={info['hp_after']}")
         if info.get("fed_meteor"):
@@ -118,7 +120,9 @@ def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_
             break
 
     print("-" * 100)
-    print(f"Episode finished — {state.turn} turns | Score: {state.score} | Wake-ups: {state.wake_ups}")
+    print(
+        f"Episode finished — {state.turn} turns | Score: {state.score} | Wake-ups: {state.wake_ups}"
+    )
     print()
     return action_counts, state.score
 
@@ -126,6 +130,7 @@ def run_trace(model, seed: int = 0, max_duration_seconds: float = GAME_DURATION_
 # ---------------------------------------------------------------------------
 # Multi-episode frequency table
 # ---------------------------------------------------------------------------
+
 
 def run_frequency_table(model, n_episodes: int = 20, seed_offset: int = 100):
     print("=" * 70)
@@ -151,12 +156,14 @@ def run_frequency_table(model, n_episodes: int = 20, seed_offset: int = 100):
         for k, v in ep_counts.items():
             total_counts[k] += v
         scores.append(env._state.score)
-        print(f"  Episode {ep+1:2d}: score={env._state.score:6d}  wake-ups={env._state.wake_ups}")
+        print(f"  Episode {ep + 1:2d}: score={env._state.score:6d}  wake-ups={env._state.wake_ups}")
 
     total_steps = sum(total_counts.values())
     print()
-    print(f"Mean score: {np.mean(scores):.0f} ± {np.std(scores):.0f}   "
-          f"(min {min(scores)}, max {max(scores)})")
+    print(
+        f"Mean score: {np.mean(scores):.0f} ± {np.std(scores):.0f}   "
+        f"(min {min(scores)}, max {max(scores)})"
+    )
     print()
     print(f"{'Action':<30}  {'Count':>8}  {'% of steps':>10}")
     print("-" * 55)
@@ -171,20 +178,21 @@ def run_frequency_table(model, n_episodes: int = 20, seed_offset: int = 100):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model", type=str, default="models/best/best_model.zip",
-        help="Path to saved MaskablePPO model (.zip)"
+        "--model",
+        type=str,
+        default="models/best/best_model.zip",
+        help="Path to saved MaskablePPO model (.zip)",
     )
-    parser.add_argument("--episodes", type=int, default=20,
-                        help="Episodes for frequency table")
-    parser.add_argument("--trace-seed", type=int, default=0,
-                        help="RNG seed for the strategy trace episode")
-    parser.add_argument("--trace-only", action="store_true",
-                        help="Skip the frequency table")
-    parser.add_argument("--freq-only", action="store_true",
-                        help="Skip the strategy trace")
+    parser.add_argument("--episodes", type=int, default=20, help="Episodes for frequency table")
+    parser.add_argument(
+        "--trace-seed", type=int, default=0, help="RNG seed for the strategy trace episode"
+    )
+    parser.add_argument("--trace-only", action="store_true", help="Skip the frequency table")
+    parser.add_argument("--freq-only", action="store_true", help="Skip the strategy trace")
     args = parser.parse_args()
 
     print(f"Loading model from {args.model} ...\n")
