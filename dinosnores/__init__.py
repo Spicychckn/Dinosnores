@@ -1,3 +1,3 @@
-from .simulator import DinosnoresSimulator
-from .state import GameState
-from .actions import ActionType
+from .actions import ActionType as ActionType
+from .simulator import DinosnoresSimulator as DinosnoresSimulator
+from .state import GameState as GameState

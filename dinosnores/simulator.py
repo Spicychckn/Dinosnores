@@ -30,55 +30,80 @@ state, reward, done, info = sim.step(state, action)
 
 import math
 import random as _random
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Any
 
-from .state import GameState
 from .actions import ActionType
 from .constants import (
-    # Enums
-    HerbivoreType, CarnivoreType, BeastType,
+    ALARM_CLOCK_BUY_COST,
+    # Unlocks
+    ALARM_CLOCK_UNLOCK_WAKE_UPS,
+    BASE_SOUP_CAPACITY,
+    # Beacon
+    BEACON_MAX_CHARGES,
+    BEACON_RECHARGE_TURNS,
+    BEACON_SOUP_FRACTION,
+    BEAST_STATS,
+    BRUTISH_BEASTS_BONUS,
+    BYE_BYE_PLANET_REDUCTION,
+    CARNIVORE_NEST_EGG_PROBS,
+    CARNIVORE_NEST_SPAWN_COST,
+    CARNIVORE_NEST_UNLOCK_WAKE_UPS,
+    CARNIVORE_STATS,
+    CREATURE_CURRENCY_DROP,
+    # Currency items
+    CURRENCY_ITEM_VALUE,
+    GAME_DURATION_SECONDS,
+    GREATER_CRATERS_BONUS,
+    HERBIVORE_NEST_EGG_PROBS,
+    HERBIVORE_NEST_SPAWN_COST,
+    HERBIVORE_NEST_UNLOCK_WAKE_UPS,
     # Stat tables
-    HERBIVORE_STATS, CARNIVORE_STATS, BEAST_STATS,
-    # T-Rex
-    TREX_INITIAL_HP, TREX_HP_PER_WAKEUP,
-    SCORE_BASE_INITIAL, SCORE_BASE_INCREMENT,
+    HERBIVORE_STATS,
+    MAX_BRUTISH_BEASTS_LEVEL,
+    MAX_BYE_BYE_PLANET_LEVEL,
+    MAX_CN_LEVEL,
+    MAX_CURRENCY_LEVEL,
+    MAX_GREATER_CRATERS_LEVEL,
+    MAX_HN_LEVEL,
+    # Upgrade max levels
+    MAX_MORE_SCORE_LEVEL,
+    MAX_PC_LEVEL,
     # Plant
     MAX_PLANT_LEVEL,
+    MAX_SHARPER_FANGS_LEVEL,
+    MAX_SOUP_STORES_LEVEL,
     # Station constants
-    MAX_VP_LEVEL, MAX_HN_LEVEL, MAX_CN_LEVEL, MAX_PC_LEVEL,
-    STATION_BUY_COST,
-    VOLCANIC_PATCH_UNLOCK_WAKE_UPS,
-    HERBIVORE_NEST_UNLOCK_WAKE_UPS,
-    CARNIVORE_NEST_UNLOCK_WAKE_UPS,
-    PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS,
-    VOLCANIC_PATCH_SPAWN_COST,
-    VOLCANIC_PATCH_PLANT_PROBS,
-    HERBIVORE_NEST_SPAWN_COST,
-    HERBIVORE_NEST_EGG_PROBS,
-    CARNIVORE_NEST_SPAWN_COST,
-    CARNIVORE_NEST_EGG_PROBS,
-    PRIMORDIAL_CRATER_SOUP_PER_TURN,
-    # Time model
-    SECONDS_PER_TURN, GAME_DURATION_SECONDS,
-    # Beacon
-    BEACON_MAX_CHARGES, BEACON_RECHARGE_TURNS, BEACON_SOUP_FRACTION,
-    # Unlocks
-    ALARM_CLOCK_UNLOCK_WAKE_UPS, ALARM_CLOCK_BUY_COST,
+    MAX_VP_LEVEL,
     # Upgrade effects
-    MORE_SCORE_BONUS, SHARPER_FANGS_BONUS, BRUTISH_BEASTS_BONUS,
-    GREATER_CRATERS_BONUS,
-    BYE_BYE_PLANET_REDUCTION,
-    SOUP_STORES_BONUS, BASE_SOUP_CAPACITY,
-    # Upgrade max levels
-    MAX_MORE_SCORE_LEVEL, MAX_SHARPER_FANGS_LEVEL, MAX_BRUTISH_BEASTS_LEVEL,
-    MAX_GREATER_CRATERS_LEVEL, MAX_SOUP_STORES_LEVEL, MAX_BYE_BYE_PLANET_LEVEL,
+    MORE_SCORE_BONUS,
+    PRIMORDIAL_CRATER_SOUP_PER_TURN,
+    PRIMORDIAL_CRATER_UNLOCK_WAKE_UPS,
+    SCORE_BASE_INCREMENT,
+    SCORE_BASE_INITIAL,
+    # Time model
+    SECONDS_PER_TURN,
+    SHARPER_FANGS_BONUS,
+    SHOP_CATALOG,
+    # Event Shop
+    SHOP_DAY_TURNS,
+    SHOP_ITEMS_PER_DAY,
+    SHOP_NUM_DAYS,
+    SOUP_STORES_BONUS,
+    STATION_BUY_COST,
+    TREX_HP_PER_WAKEUP,
+    # T-Rex
+    TREX_INITIAL_HP,
     # Upgrade costs
     UPGRADE_COSTS,
-    # Currency items
-    CURRENCY_ITEM_VALUE, MAX_CURRENCY_LEVEL, CREATURE_CURRENCY_DROP,
-    # Event Shop
-    SHOP_DAY_TURNS, SHOP_NUM_DAYS, SHOP_ITEMS_PER_DAY, SHOP_CATALOG,
+    VOLCANIC_PATCH_PLANT_PROBS,
+    VOLCANIC_PATCH_SPAWN_COST,
+    VOLCANIC_PATCH_UNLOCK_WAKE_UPS,
+    BeastType,
+    CarnivoreType,
+    # Enums
+    HerbivoreType,
 )
+from .state import GameState
 
 
 class DinosnoresSimulator:
@@ -97,7 +122,7 @@ class DinosnoresSimulator:
         If set, episode ends when score >= score_target.
     """
 
-    def __init__(self, max_duration_seconds: float = GAME_DURATION_SECONDS, score_target: Optional[int] = None, seed: Optional[int] = None):
+    def __init__(self, max_duration_seconds: float = GAME_DURATION_SECONDS, score_target: int | None = None, seed: int | None = None):
         self.max_turns = int(max_duration_seconds / SECONDS_PER_TURN)
         self.score_target = score_target
         self.seed = seed
@@ -122,7 +147,7 @@ class DinosnoresSimulator:
         state.primordial_craters = {2: 1}
         return state
 
-    def get_valid_actions(self, state: GameState) -> List[ActionType]:
+    def get_valid_actions(self, state: GameState) -> list[ActionType]:
         """
         Return every action that can legally be executed in the given state.
         WAIT is valid only when there is something worth waiting for — beacon
@@ -133,7 +158,7 @@ class DinosnoresSimulator:
             state.beacon_charges < BEACON_MAX_CHARGES or
             self._soup_rate(state) > 0
         )
-        valid: List[ActionType] = [ActionType.WAIT] if wait_useful else []
+        valid: list[ActionType] = [ActionType.WAIT] if wait_useful else []
         free = state.grid_available()
 
         # --- Spawn plant (Volcanic Patch required, 1 free grid space, soup cost) ---
@@ -316,7 +341,7 @@ class DinosnoresSimulator:
 
     def step(
         self, state: GameState, action: ActionType
-    ) -> Tuple[GameState, float, bool, Dict[str, Any]]:
+    ) -> tuple[GameState, float, bool, dict[str, Any]]:
         """
         Apply *action* to *state* and return:
             (next_state, reward, done, info)
@@ -329,7 +354,7 @@ class DinosnoresSimulator:
         The input state is NOT modified; a copy is returned.
         """
         state = state.copy()
-        info: Dict[str, Any] = {}
+        info: dict[str, Any] = {}
         score_before = state.score
 
         valid = self.get_valid_actions(state)
@@ -356,7 +381,7 @@ class DinosnoresSimulator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _cheapest_level(station_dict: Dict[int, int]) -> int:
+    def _cheapest_level(station_dict: dict[int, int]) -> int:
         """Return the lowest level that has at least one instance."""
         return min(lvl for lvl, cnt in station_dict.items() if cnt > 0)
 
@@ -374,7 +399,7 @@ class DinosnoresSimulator:
     # ------------------------------------------------------------------
 
     def _execute_action(self, state: GameState, action: ActionType,
-                        info: Dict[str, Any]) -> None:
+                        info: dict[str, Any]) -> None:
 
         if action == ActionType.WAIT:
             return
@@ -715,7 +740,7 @@ class DinosnoresSimulator:
     # ------------------------------------------------------------------
 
     def _deal_damage(self, state: GameState, damage: int,
-                     info: Dict[str, Any]) -> None:
+                     info: dict[str, Any]) -> None:
         effective = min(damage, state.trex_hp)
         state.trex_hp -= effective
         info.setdefault("damage_dealt", 0)
@@ -724,7 +749,7 @@ class DinosnoresSimulator:
         if state.trex_hp <= 0:
             self._wake_trex(state, info)
 
-    def _wake_trex(self, state: GameState, info: Dict[str, Any]) -> None:
+    def _wake_trex(self, state: GameState, info: dict[str, Any]) -> None:
         base_score = SCORE_BASE_INITIAL + state.wake_ups * SCORE_BASE_INCREMENT
         multiplier = 1.0 + MORE_SCORE_BONUS[state.more_score_level]
         awarded = int(base_score * multiplier)
@@ -858,7 +883,7 @@ class DinosnoresSimulator:
 # Module-level helpers
 # ------------------------------------------------------------------
 
-def _lowest_mergeable_level(d: Dict[int, int], max_level: int) -> int:
+def _lowest_mergeable_level(d: dict[int, int], max_level: int) -> int:
     """Return the lowest level in d that has ≥2 items and is below max_level."""
     for lvl in range(1, max_level):
         if d.get(lvl, 0) >= 2:
@@ -866,7 +891,7 @@ def _lowest_mergeable_level(d: Dict[int, int], max_level: int) -> int:
     raise ValueError("No mergeable level found")  # should never happen if validity check passed
 
 
-def _highest_item_level(d: Dict[int, int]) -> int:
+def _highest_item_level(d: dict[int, int]) -> int:
     """Return the highest level in d that has ≥1 item."""
     for lvl in range(MAX_CURRENCY_LEVEL, 0, -1):
         if d.get(lvl, 0) >= 1:
@@ -884,7 +909,7 @@ def _credit_currency(state: "GameState", currency_type: str, value: int) -> None
         state.fangs += value
 
 
-def _item_dict(state: "GameState", currency_type: str) -> Dict[int, int]:
+def _item_dict(state: "GameState", currency_type: str) -> dict[int, int]:
     """Return the mutable item dict for a given currency type string."""
     if currency_type == "bones":
         return state.bone_items
@@ -901,12 +926,12 @@ def _drop_currency(state: "GameState", creature_type) -> None:
     d[drop_level] = d.get(drop_level, 0) + 1
 
 
-def _has_station(station_dict: Dict[int, int]) -> bool:
+def _has_station(station_dict: dict[int, int]) -> bool:
     """Return True if there is at least one instance of this station type."""
     return any(cnt > 0 for cnt in station_dict.values())
 
 
-def _merge_station(station_dict: Dict[int, int], from_level: int) -> None:
+def _merge_station(station_dict: dict[int, int], from_level: int) -> None:
     """Merge two instances at from_level into one at from_level+1."""
     station_dict[from_level] -= 2
     station_dict[from_level + 1] = station_dict.get(from_level + 1, 0) + 1
@@ -981,12 +1006,12 @@ _ATTACK_BEAST_ACTION = {
 _ACTION_TO_BEAST_ATTACK = {v: k for k, v in _ATTACK_BEAST_ACTION.items()}
 
 # Feed / merge currency dispatch maps
-_FEED_ACTION_TO_TYPE: Dict = {
+_FEED_ACTION_TO_TYPE: dict = {
     ActionType.FEED_BONES: "bones",
     ActionType.FEED_HORNS: "horns",
     ActionType.FEED_FANGS: "fangs",
 }
-_MERGE_CURRENCY_ACTION_TO_TYPE: Dict = {
+_MERGE_CURRENCY_ACTION_TO_TYPE: dict = {
     ActionType.MERGE_BONES: "bones",
     ActionType.MERGE_HORNS: "horns",
     ActionType.MERGE_FANGS: "fangs",

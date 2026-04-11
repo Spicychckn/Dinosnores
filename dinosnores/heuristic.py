@@ -42,18 +42,19 @@ Soup cost per adult Stego from scratch (at HN/VP lvl-1):
   - Total : 8,000 soup
 """
 
-from typing import Dict, List, Optional
 
 from .actions import ActionType
-from .state import GameState
 from .constants import (
-    HerbivoreType, BeastType,
-    BEAST_STATS, BRUTISH_BEASTS_BONUS,
+    BEAST_STATS,
+    BRUTISH_BEASTS_BONUS,
+    GAME_DURATION_SECONDS,
     MAX_CURRENCY_LEVEL,
+    SECONDS_PER_TURN,
     SHOP_DAY_TURNS,
-    GAME_DURATION_SECONDS, SECONDS_PER_TURN,
+    BeastType,
+    HerbivoreType,
 )
-
+from .state import GameState
 
 ATTACK_BATCH       = 8    # stegos to attack per wave
 FREE_SPACES_BUFFER = 4    # grid spaces kept free for merging headroom
@@ -76,7 +77,7 @@ class GreedyHeuristic:
         self._batch_remaining: int = 0  # attacks still owed in the current wave
 
     def choose_action(
-        self, state: GameState, valid_actions: List[ActionType]
+        self, state: GameState, valid_actions: list[ActionType]
     ) -> ActionType:
         va = set(valid_actions)
 
@@ -273,7 +274,7 @@ class GreedyHeuristic:
         stego_babies: int,
         grid_full: bool,
         free: int,
-    ) -> Optional[ActionType]:
+    ) -> ActionType | None:
         """
         Return the next action to advance one Stego through the pipeline,
         or None if the caller should WAIT.
@@ -342,12 +343,12 @@ def _effective_beast_dmg(state: GameState, beast_type: BeastType) -> int:
     return int(base * mult)
 
 
-def _has_max_level_item(item_dict: Dict[int, int]) -> bool:
+def _has_max_level_item(item_dict: dict[int, int]) -> bool:
     """True if at least one currency item at MAX_CURRENCY_LEVEL exists."""
     return item_dict.get(MAX_CURRENCY_LEVEL, 0) >= 1
 
 
-def _has_item_at_or_above(item_dict: Dict[int, int], min_level: int) -> bool:
+def _has_item_at_or_above(item_dict: dict[int, int], min_level: int) -> bool:
     """True if at least one currency item at or above min_level exists."""
     return any(item_dict.get(lvl, 0) >= 1 for lvl in range(min_level, MAX_CURRENCY_LEVEL + 1))
 

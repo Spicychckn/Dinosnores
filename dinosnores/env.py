@@ -7,27 +7,39 @@ Action masking    : action_masks() returns a bool array compatible with
                     MaskablePPO from sb3-contrib.
 """
 
-import numpy as np
 import gymnasium as gym
+import numpy as np
 from gymnasium import spaces
 
-from .simulator import DinosnoresSimulator
 from .actions import ActionType
 from .constants import (
-    HerbivoreType, CarnivoreType, BeastType,
-    GRID_SIZE, BEACON_MAX_CHARGES, BEACON_RECHARGE_TURNS,
-    BASE_SOUP_CAPACITY, SOUP_STORES_BONUS,
-    PRIMORDIAL_CRATER_SOUP_PER_TURN,
-    MAX_PLANT_LEVEL,
-    MAX_VP_LEVEL, MAX_HN_LEVEL, MAX_CN_LEVEL, MAX_PC_LEVEL,
-    MAX_MORE_SCORE_LEVEL, MAX_BYE_BYE_PLANET_LEVEL,
-    MAX_SHARPER_FANGS_LEVEL, MAX_BRUTISH_BEASTS_LEVEL,
-    MAX_GREATER_CRATERS_LEVEL, MAX_SOUP_STORES_LEVEL,
-    MAX_CURRENCY_LEVEL,
+    BASE_SOUP_CAPACITY,
+    BEACON_MAX_CHARGES,
+    BEACON_RECHARGE_TURNS,
     GAME_DURATION_SECONDS,
+    GRID_SIZE,
     HERBIVORE_STATS,
-    SHOP_DAY_TURNS, SHOP_NUM_DAYS, SHOP_TOTAL_ITEMS,
+    MAX_BRUTISH_BEASTS_LEVEL,
+    MAX_BYE_BYE_PLANET_LEVEL,
+    MAX_CN_LEVEL,
+    MAX_CURRENCY_LEVEL,
+    MAX_GREATER_CRATERS_LEVEL,
+    MAX_HN_LEVEL,
+    MAX_MORE_SCORE_LEVEL,
+    MAX_PC_LEVEL,
+    MAX_PLANT_LEVEL,
+    MAX_SHARPER_FANGS_LEVEL,
+    MAX_SOUP_STORES_LEVEL,
+    MAX_VP_LEVEL,
+    PRIMORDIAL_CRATER_SOUP_PER_TURN,
+    SHOP_DAY_TURNS,
+    SHOP_NUM_DAYS,
+    SOUP_STORES_BONUS,
+    BeastType,
+    CarnivoreType,
+    HerbivoreType,
 )
+from .simulator import DinosnoresSimulator
 
 # Ordered list of all actions — index = action integer passed to step()
 ALL_ACTIONS: list[ActionType] = list(ActionType)

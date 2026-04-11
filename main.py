@@ -6,7 +6,7 @@ The heuristic follows a fixed priority order to exercise all game mechanics:
   → spawn egg → spawn plant → wait
 """
 
-from dinosnores import DinosnoresSimulator, ActionType
+from dinosnores import ActionType, DinosnoresSimulator
 
 ATTACK_PRIORITY = [
     ActionType.ATTACK_SABER_TOOTH,

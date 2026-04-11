@@ -4,19 +4,16 @@ GameState dataclass for the Dinosnores simulator.
 
 import copy
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 from .constants import (
-    HerbivoreType,
-    CarnivoreType,
-    BeastType,
-    TREX_INITIAL_HP,
-    BEACON_MAX_CHARGES,
     BASE_SOUP_CAPACITY,
     GRID_SIZE,
     SHOP_TOTAL_ITEMS,
+    TREX_INITIAL_HP,
+    BeastType,
+    CarnivoreType,
+    HerbivoreType,
 )
-
 
 
 @dataclass
@@ -38,7 +35,7 @@ class GameState:
     # -----------------------------------------------------------------------
     primordial_soup: int = 0
     soup_capacity:   int = BASE_SOUP_CAPACITY
-    plants:          Dict[int, int] = field(default_factory=dict)  # level -> count
+    plants:          dict[int, int] = field(default_factory=dict)  # level -> count
 
     # Currency used for upgrades and station improvements
     big_bones: int = 0
@@ -57,33 +54,33 @@ class GameState:
     # Creatures
     # adult_* counts are creatures ready to be deployed against the T-Rex.
     # -----------------------------------------------------------------------
-    herbivore_eggs:    Dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
-    baby_herbivores:   Dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
-    adult_herbivores:  Dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
+    herbivore_eggs:    dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
+    baby_herbivores:   dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
+    adult_herbivores:  dict[HerbivoreType, int] = field(default_factory=lambda: {t: 0 for t in HerbivoreType})
 
-    carnivore_eggs:    Dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
-    baby_carnivores:   Dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
-    adult_carnivores:  Dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
+    carnivore_eggs:    dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
+    baby_carnivores:   dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
+    adult_carnivores:  dict[CarnivoreType, int] = field(default_factory=lambda: {t: 0 for t in CarnivoreType})
 
-    beasts: Dict[BeastType, int] = field(default_factory=lambda: {t: 0 for t in BeastType})
+    beasts: dict[BeastType, int] = field(default_factory=lambda: {t: 0 for t in BeastType})
 
     # -----------------------------------------------------------------------
     # Currency items on the grid  (Dict maps level -> count)
     # Dropped by creatures on attack; must be fed to T-Rex to become spendable.
     # -----------------------------------------------------------------------
-    bone_items: Dict[int, int] = field(default_factory=dict)
-    horn_items: Dict[int, int] = field(default_factory=dict)
-    fang_items: Dict[int, int] = field(default_factory=dict)
+    bone_items: dict[int, int] = field(default_factory=dict)
+    horn_items: dict[int, int] = field(default_factory=dict)
+    fang_items: dict[int, int] = field(default_factory=dict)
 
     # -----------------------------------------------------------------------
     # Stations  (Dict maps level -> count of instances at that level)
     # Stations are bought at level 1 and merged up: lvl1+lvl1 -> lvl2, etc.
     # Each instance occupies 1 grid space.
     # -----------------------------------------------------------------------
-    volcanic_patches:    Dict[int, int] = field(default_factory=lambda: {1: 1})
-    herbivore_nests:     Dict[int, int] = field(default_factory=lambda: {1: 1})
-    carnivore_nests:     Dict[int, int] = field(default_factory=dict)
-    primordial_craters:  Dict[int, int] = field(default_factory=dict)
+    volcanic_patches:    dict[int, int] = field(default_factory=lambda: {1: 1})
+    herbivore_nests:     dict[int, int] = field(default_factory=lambda: {1: 1})
+    carnivore_nests:     dict[int, int] = field(default_factory=dict)
+    primordial_craters:  dict[int, int] = field(default_factory=dict)
 
     # -----------------------------------------------------------------------
     # Upgrade levels  (0 = not purchased)
@@ -98,7 +95,7 @@ class GameState:
     # -----------------------------------------------------------------------
     # Event Shop  (3-day rotation, 4 items per day, one purchase per slot)
     # -----------------------------------------------------------------------
-    shop_items_claimed: List[bool] = field(
+    shop_items_claimed: list[bool] = field(
         default_factory=lambda: [False] * SHOP_TOTAL_ITEMS
     )
 
